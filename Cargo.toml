@@ -1,0 +1,9 @@
+[package]
+name = "cqueue"
+version = "0.1.0"
+authors = ["timglabisch <tim@ainfach.de>"]
+
+[dependencies]
+cdrs = "1.2.0"
+time = "*"
+rand = "0.4"
