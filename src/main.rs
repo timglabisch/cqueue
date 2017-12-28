@@ -1,9 +1,14 @@
+#![feature(plugin)]
+#![plugin(rocket_codegen)]
 extern crate cdrs;
 extern crate time;
 extern crate rand;
+extern crate rocket;
+extern crate r2d2;
 
 mod lock_handler;
 mod driver;
+mod api;
 
 use cdrs::client::CDRS;
 use cdrs::authenticators::PasswordAuthenticator;
@@ -16,8 +21,9 @@ use lock_handler::LockHandler;
 use std::{thread};
 
 
-
 fn main() {
+
+    ::api::Api::run();
 
     let authenticator = PasswordAuthenticator::new("user", "pass");
     let addr = "127.0.0.1:9042";

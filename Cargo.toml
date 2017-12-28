@@ -7,3 +7,6 @@ authors = ["timglabisch <tim@ainfach.de>"]
 cdrs = "1.2.0"
 time = "*"
 rand = "0.4"
+rocket = "0.3.5"
+rocket_codegen = "0.3.5"
+r2d2 = "0.7.1"
