@@ -43,21 +43,30 @@ fn main() {
         let mut lockOption = session.lock_acquire("foo", 123);
 
         match lockOption {
-            None => {
+            Err(_) => {
+                println!("there was an error acquiring the lock");
+                continue;
+            },
+            Ok(None) => {
                 println!("could not get lock");
                 continue;
             },
-            Some(mut lock) => {
+            Ok(Some(mut lock)) => {
                 loop {
 
                     thread::sleep(::std::time::Duration::from_millis(1000));
 
-                    if session.lock_renew(&mut lock) {
-                    println!("renewed lock"); 
-                    } else {
-                        println!("could not renew lock");
-                        break;
-                    }
+                    match session.lock_renew(&mut lock) {
+                        Ok(true) => {println!("renewed lock");},
+                        Ok(false) => {
+                            println!("could not renew lock");
+                            break;
+                        },
+                        Err(e) => {
+                            println!("error occured when trying to renew the lock. -> {}", e);
+                            break;
+                        }
+                    };
                 }
             }
         }

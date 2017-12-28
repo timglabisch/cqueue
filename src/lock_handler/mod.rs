@@ -39,9 +39,9 @@ impl AcquiredLock {
 }
 
 pub trait LockHandler {
-    fn lock_acquire(&mut self, queue: &str, partition: u32) -> Option<AcquiredLock>;
+    fn lock_acquire(&mut self, queue: &str, partition: u32) -> Result<Option<AcquiredLock>, String>;
 
-    fn lock_renew(&mut self, lock: &mut AcquiredLock) -> bool;
+    fn lock_renew(&mut self, lock: &mut AcquiredLock) -> Result<bool, String>;
 }
 
 struct Lock {
