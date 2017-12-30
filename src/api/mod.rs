@@ -13,6 +13,8 @@ use r2d2::CustomizeConnection;
 use cdrs::transport::CDRSTransport;
 use cdrs::authenticators::Authenticator;
 use cdrs::query::QueryBuilder;
+use driver::cassandra::Pool;
+use driver::offset_handler::CassandraOffsetHandler;
 
 
 #[get("/")]
@@ -25,10 +27,12 @@ pub fn index(csdr: State<Pool>) -> &'static str {
 
             let mut session : &mut ::cdrs::client::Session<_, _> = conn.deref_mut();
 
+            let next_id = session.get_latest_offset("foo", 1).expect("could not get id") + 1;
+
             let query = ::cdrs::query::QueryBuilder::new("insert into queue (\"queue\", \"part\", \"id\", \"msg\", \"date\") values (?, ?, ?, ?, ?);").values(vec![
                 "foo".into(),
                 1.into(),
-                5.into(),
+                next_id.into(),
                 "mgs".into(),
                 ::time::get_time().into()
             ]).finalize();
@@ -44,7 +48,6 @@ pub fn index(csdr: State<Pool>) -> &'static str {
 
 }
 
-type Pool = ::r2d2::Pool<::cdrs::connection_manager::ConnectionManager<::cdrs::authenticators::PasswordAuthenticator<'static>, ::cdrs::transport::TransportTcp>>;
 
 
 #[derive(Debug)]

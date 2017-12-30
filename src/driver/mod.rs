@@ -1,4 +1,5 @@
-mod cassandra;
+pub mod cassandra;
+pub mod offset_handler;
 
 pub struct ConnectionConfigs {
     inner: Vec<ConnectionConfig>

@@ -11,6 +11,8 @@ use time::Timespec;
 use cdrs::types::IntoRustByName;
 use rand;
 
+pub type Pool = ::r2d2::Pool<::cdrs::connection_manager::ConnectionManager<::cdrs::authenticators::PasswordAuthenticator<'static>, ::cdrs::transport::TransportTcp>>;
+
 pub struct ConnectionCassandra {
     //session: Box<Session<::cdrs::authenticators::PasswordAuthenticator, ::cdrs::transport::TransportTcp>>
 }
