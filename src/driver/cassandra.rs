@@ -5,9 +5,6 @@ use cdrs::transport::CDRSTransport;
 use cdrs::query::QueryBuilder;
 use lock_handler::LockHandler;
 use lock_handler::AcquiredLock;
-use time;
-use cdrs::types::ByName;
-use time::Timespec;
 use cdrs::types::IntoRustByName;
 use rand;
 

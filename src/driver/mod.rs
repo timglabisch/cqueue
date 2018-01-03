@@ -1,5 +1,6 @@
 pub mod cassandra;
 pub mod offset_handler;
+pub mod queue_handler;
 
 pub struct ConnectionConfigs {
     inner: Vec<ConnectionConfig>

@@ -5,10 +5,14 @@ extern crate time;
 extern crate rand;
 extern crate rocket;
 extern crate r2d2;
+extern crate toml;
+extern crate serde;
+#[macro_use] extern crate serde_derive;
 
 mod lock_handler;
 mod driver;
 mod api;
+mod config;
 
 use cdrs::client::CDRS;
 use cdrs::authenticators::PasswordAuthenticator;
@@ -46,9 +50,9 @@ fn main() {
 
         thread::sleep(::std::time::Duration::from_millis(1000));
 
-        let mut lockOption = session.lock_acquire("foo", 123);
+        let lock_option = session.lock_acquire("foo", 123);
 
-        match lockOption {
+        match lock_option {
             Err(_) => {
                 println!("there was an error acquiring the lock");
                 continue;
