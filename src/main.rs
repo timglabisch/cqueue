@@ -35,13 +35,13 @@ fn main() {
     ::api::Api::run();
 
     let pool = ::api::Api::init_pool();
+
     //let mut pool : ::;
 
     let config = Config::new_from_file("config.toml").expect("could not read config.toml");
 
     let mut fact_service = FactService::new();
     fact_service.apply(&config);
-
 
 
     let authenticator = PasswordAuthenticator::new("user", "pass");
@@ -59,30 +59,13 @@ fn main() {
     match session.query(q, false, false) {
         Err(ref err) => panic!("create_table map (v3) {:?}", err),
         Ok(_) => true,
-    }; 
-
-
-
-
-    /*
-    let query = QueryBuilder::new("INSERT INTO queue_foo_partition1 (id, date, msg) VALUES (?,?,?)").values(vec![
-        123.into(),
-        time::get_time().into(),
-        "fooo".into()
-    ]).finalize();
-
-    let inserted = session.query(query, false, false);
-    
-    match inserted {
-        Err(ref err) => panic!("inserted str {:?}", err),
-        Ok(_) => true,
     };
-    */
 
-    println!("Hello, world!");
+    run_maintain_locks(&pool);
+
 }
 
-pub fn run_maintain_locks<P: Pool>(pool : P) {
+pub fn run_maintain_locks<P: Pool>(pool : &P) {
 
     let mut lock_handler = LockHandler::new(pool);
 

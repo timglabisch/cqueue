@@ -14,12 +14,12 @@ use r2d2::CustomizeConnection;
 use cdrs::transport::CDRSTransport;
 use cdrs::authenticators::Authenticator;
 use cdrs::query::QueryBuilder;
-use driver::cassandra::Pool;
 use driver::offset_handler::CassandraOffsetHandler;
 use rand::thread_rng;
 use rand::Rng;
 use driver::queue_handler::CassandraQueueHandler;
 use driver::queue_handler::QueueMsg;
+use driver::CPool as Pool;
 
 #[get("/")]
 pub fn index(csdr: State<Pool>) -> &'static str {

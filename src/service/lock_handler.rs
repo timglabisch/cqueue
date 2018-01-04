@@ -8,13 +8,13 @@ use cdrs::frame::Frame;
 use lock_handler::AcquiredLock;
 use cdrs::types::IntoRustByName;
 
-pub struct LockHandler<P> where P: Pool {
-    pool : P
+pub struct LockHandler<'a, P> where P: Pool, P: 'a {
+    pool : &'a P
 }
 
-impl<P> LockHandler<P> where P: Pool {
+impl<'a, P> LockHandler<'a, P> where P: Pool, P: 'a {
 
-    pub fn new(pool: P) -> Self {
+    pub fn new(pool: &'a P) -> Self {
         LockHandler {
             pool
         }
@@ -23,7 +23,8 @@ impl<P> LockHandler<P> where P: Pool {
     pub fn lock_acquire(&mut self, queue: &str, partition: u32) -> Result<Option<AcquiredLock>, String>
     {
 
-        let connection = self.pool.get().map_err(|_| "could not get conection from pool".to_string())?.getConnection();
+        let mut pool = self.pool.get().map_err(|_| "could not get conection from pool".to_string())?;
+        let mut connection = pool.getConnection();
 
         let query = QueryBuilder::new("INSERT INTO queue_locks (queue, part) VALUES (?,?) IF NOT EXISTS USING TTL ?").values(vec![
             queue.into(),
@@ -70,7 +71,9 @@ impl<P> LockHandler<P> where P: Pool {
 
     pub fn lock_renew(&mut self, lock: &mut AcquiredLock) -> Result<bool, String> {
 
-        let connection = self.pool.get().map_err(|_| "could not get conection from pool".to_string())?.getConnection();
+
+        let mut pool = self.pool.get().map_err(|_| "could not get conection from pool".to_string())?;
+        let mut connection = pool.getConnection();
 
         let valid_until = ::time::get_time();
 

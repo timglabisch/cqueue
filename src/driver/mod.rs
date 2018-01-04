@@ -16,6 +16,8 @@ pub mod lock_handler;
 pub mod offset_handler;
 pub mod queue_handler;
 
+pub type CPool = ::r2d2::Pool<::cdrs::connection_manager::ConnectionManager<::cdrs::authenticators::PasswordAuthenticator<'static>, ::cdrs::transport::TransportTcp>>;
+
 pub trait Connection {
 
     fn query(&mut self, query: Query) -> ::cdrs::error::Result<::cdrs::frame::Frame>;
@@ -37,7 +39,7 @@ pub trait PooledConnection {
     fn getConnection(&mut self) -> &mut Connection;
 }
 
-impl<T, X> PooledConnection for ::r2d2::PooledConnection<::cdrs::cluster::ClusterConnectionManager<T, X>> where
+impl<T, X> PooledConnection for ::r2d2::PooledConnection<ConnectionManager<T, X>> where
     T: Authenticator + Send + Sync + 'static,
     X: CDRSTransport + Send + Sync + 'static
 {
@@ -50,7 +52,7 @@ pub trait Pool {
     fn get(&self) -> Result<Box<PooledConnection>, Box<Error>>;
 }
 
-impl<T, X> Pool for ::r2d2::Pool<ClusterConnectionManager<T, X>> where
+impl<T, X> Pool for ::r2d2::Pool<ConnectionManager<T, X>> where
     T: Authenticator + Send + Sync + 'static,
     X: CDRSTransport + Send + Sync + 'static {
 
