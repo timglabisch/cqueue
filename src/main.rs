@@ -23,15 +23,19 @@ use cdrs::compression::Compression;
 use cdrs::query::{QueryBuilder, QueryParamsBuilder};
 use std::convert::Into;
 use cdrs::types::value::{Value, Bytes};
-use lock_handler::LockHandler;
 use std::{thread};
 use config::Config;
 use service::fact::FactService;
+use service::lock_handler::LockHandler;
+use driver::Pool;
 
 
 fn main() {
 
     ::api::Api::run();
+
+    let pool = ::api::Api::init_pool();
+    //let mut pool : ::;
 
     let config = Config::new_from_file("config.toml").expect("could not read config.toml");
 
@@ -57,41 +61,7 @@ fn main() {
         Ok(_) => true,
     }; 
 
-    loop {
 
-        thread::sleep(::std::time::Duration::from_millis(1000));
-
-        let lock_option = session.lock_acquire("foo", 123);
-
-        match lock_option {
-            Err(_) => {
-                println!("there was an error acquiring the lock");
-                continue;
-            },
-            Ok(None) => {
-                println!("could not get lock");
-                continue;
-            },
-            Ok(Some(mut lock)) => {
-                loop {
-
-                    thread::sleep(::std::time::Duration::from_millis(1000));
-
-                    match session.lock_renew(&mut lock) {
-                        Ok(true) => {println!("renewed lock");},
-                        Ok(false) => {
-                            println!("could not renew lock");
-                            break;
-                        },
-                        Err(e) => {
-                            println!("error occured when trying to renew the lock. -> {}", e);
-                            break;
-                        }
-                    };
-                }
-            }
-        }
-    }
 
 
     /*
@@ -110,4 +80,46 @@ fn main() {
     */
 
     println!("Hello, world!");
+}
+
+pub fn run_maintain_locks<P: Pool>(pool : P) {
+
+    let mut lock_handler = LockHandler::new(pool);
+
+    loop {
+
+        thread::sleep(::std::time::Duration::from_millis(1000));
+
+        let lock_option = lock_handler.lock_acquire("foo", 123);
+
+        match lock_option {
+            Err(_) => {
+                println!("there was an error acquiring the lock");
+                continue;
+            },
+            Ok(None) => {
+                println!("could not get lock");
+                continue;
+            },
+            Ok(Some(mut lock)) => {
+                loop {
+
+                    thread::sleep(::std::time::Duration::from_millis(1000));
+
+                    match lock_handler.lock_renew(&mut lock) {
+                        Ok(true) => {println!("renewed lock");},
+                        Ok(false) => {
+                            println!("could not renew lock");
+                            break;
+                        },
+                        Err(e) => {
+                            println!("error occured when trying to renew the lock. -> {}", e);
+                            break;
+                        }
+                    };
+                }
+            }
+        }
+    }
+
 }

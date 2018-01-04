@@ -38,11 +38,6 @@ impl AcquiredLock {
     }
 }
 
-pub trait LockHandler {
-    fn lock_acquire(&mut self, queue: &str, partition: u32) -> Result<Option<AcquiredLock>, String>;
-
-    fn lock_renew(&mut self, lock: &mut AcquiredLock) -> Result<bool, String>;
-}
 
 struct Lock {
     queue: String,
@@ -63,7 +58,7 @@ impl Locks {
             .filter(|x|&x.owner == owner)
             .collect()
     }
-    
+
 }
 
 
