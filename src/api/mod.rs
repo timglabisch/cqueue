@@ -14,7 +14,7 @@ use r2d2::CustomizeConnection;
 use cdrs::transport::CDRSTransport;
 use cdrs::authenticators::Authenticator;
 use cdrs::query::QueryBuilder;
-use driver::cassandra::Pool;
+use driver::lock_handler::Pool;
 use driver::offset_handler::CassandraOffsetHandler;
 use rand::thread_rng;
 use rand::Rng;

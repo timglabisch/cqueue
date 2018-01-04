@@ -1,0 +1,5 @@
+struct LockHandler;
+
+impl LockHandler {
+
+}

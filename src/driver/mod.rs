@@ -1,6 +1,68 @@
-pub mod cassandra;
+extern crate cdrs;
+
+use r2d2::ManageConnection;
+use std::error::Error;
+use std::ops::Deref;
+use std::ops::DerefMut;
+use cdrs::authenticators::Authenticator;
+use cdrs::transport::CDRSTransport;
+use cdrs::client::Session;
+use cdrs::connection_manager::ConnectionManager;
+use cdrs::cluster::ClusterConnectionManager;
+use cdrs::frame::Frame;
+use cdrs::query::Query;
+
+pub mod lock_handler;
 pub mod offset_handler;
 pub mod queue_handler;
+
+pub trait Connection {
+
+    fn query(&mut self, query: Query) -> ::cdrs::error::Result<::cdrs::frame::Frame>;
+
+}
+
+impl<T, X> Connection for ::cdrs::client::Session<T, X> where
+T: Authenticator + Send + Sync + 'static,
+X: CDRSTransport + Send + Sync + 'static {
+
+    fn query(&mut self, query: Query) -> ::cdrs::error::Result<::cdrs::frame::Frame> {
+        ::cdrs::client::Session::query(self, query, false, false)
+    }
+}
+
+
+pub trait PooledConnection {
+
+    fn getConnection(&mut self) -> &mut Connection;
+}
+
+impl<T, X> PooledConnection for ::r2d2::PooledConnection<::cdrs::cluster::ClusterConnectionManager<T, X>> where
+    T: Authenticator + Send + Sync + 'static,
+    X: CDRSTransport + Send + Sync + 'static
+{
+    fn getConnection(&mut self) -> &mut Connection {
+       self.deref_mut()
+    }
+}
+
+pub trait Pool {
+    fn get(&self) -> Result<Box<PooledConnection>, Box<Error>>;
+}
+
+impl<T, X> Pool for ::r2d2::Pool<ClusterConnectionManager<T, X>> where
+    T: Authenticator + Send + Sync + 'static,
+    X: CDRSTransport + Send + Sync + 'static {
+
+    fn get(&self) -> Result<Box<PooledConnection>, Box<Error>> {
+
+        match ::r2d2::Pool::get(self) {
+            Ok(c) => Ok(Box::new(c)),
+            Err(e) => Err(Box::new(e))
+        }
+    }
+
+}
 
 pub struct ConnectionConfigs {
     inner: Vec<ConnectionConfig>
