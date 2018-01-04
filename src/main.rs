@@ -13,6 +13,8 @@ mod lock_handler;
 mod driver;
 mod api;
 mod config;
+mod dto;
+mod service;
 
 use cdrs::client::CDRS;
 use cdrs::authenticators::PasswordAuthenticator;
@@ -23,11 +25,20 @@ use std::convert::Into;
 use cdrs::types::value::{Value, Bytes};
 use lock_handler::LockHandler;
 use std::{thread};
+use config::Config;
+use service::fact::FactService;
 
 
 fn main() {
 
     ::api::Api::run();
+
+    let config = Config::new_from_file("config.toml").expect("could not read config.toml");
+
+    let mut fact_service = FactService::new();
+    fact_service.apply(&config);
+
+
 
     let authenticator = PasswordAuthenticator::new("user", "pass");
     let addr = "127.0.0.1:9042";

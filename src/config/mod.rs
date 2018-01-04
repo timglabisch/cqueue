@@ -5,8 +5,22 @@ use std::io::Read;
 #[derive(Debug, Deserialize)]
 pub struct ConfigQueue {
     name: String,
-    partitions_read: Option<u32>,
-    partitions_write: Option<u32>
+    partitions_read: u32,
+    partitions_write: u32,
+}
+
+impl ConfigQueue {
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn get_partitions_read(&self) -> u32 {
+        self.partitions_read
+    }
+
+    pub fn get_partitions_write(&self) -> u32 {
+        self.partitions_write
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -24,8 +38,16 @@ impl Config {
         let mut buf = String::new();
         file_handle.read_to_string(&mut buf).map_err(|_|format!("could not read from file {}", path.to_string()))?;
 
+        println!("{}", &buf);
 
-        toml::from_str(&buf).map_err(|e|e.to_string())?
+        let config: Config = toml::from_str(&buf).map_err(|e| format!("{:#?}", e))?;
+
+        Ok(config)
+    }
+
+    pub fn get_queues(&self) -> &Vec<ConfigQueue>
+    {
+        &self.queues
     }
 
 }
