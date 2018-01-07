@@ -146,19 +146,19 @@ impl FactService {
 
         self.facts.partition_facts = HashMap::new();
 
-        for configQueue in config.get_queues() {
+        for config_queue in config.get_queues() {
 
-            let partition_count = if configQueue.get_partitions_read() > configQueue.get_partitions_write() {
-                configQueue.get_partitions_read()
+            let partition_count = if config_queue.get_partitions_read() > config_queue.get_partitions_write() {
+                config_queue.get_partitions_read()
             } else {
-                configQueue.get_partitions_write()
+                config_queue.get_partitions_write()
             };
 
             for partition in 1..partition_count + 1 {
 
-                let partition_type = if partition <= configQueue.get_partitions_read() && partition <= configQueue.get_partitions_write() {
+                let partition_type = if partition <= config_queue.get_partitions_read() && partition <= config_queue.get_partitions_write() {
                     PartitionType::ReadWrite
-                } else if partition <= configQueue.get_partitions_write() {
+                } else if partition <= config_queue.get_partitions_write() {
                     PartitionType::Write
                 } else {
                     PartitionType::Read
@@ -166,13 +166,13 @@ impl FactService {
 
                 let fact = PartitionFact::new(
                     Partition::new(
-                        Queue::new(configQueue.get_name().to_string()),
+                        Queue::new(config_queue.get_name().to_string()),
                         partition
                     ),
                     partition_type
                 );
 
-                let hash = self.create_hash(&configQueue.get_name(), partition);
+                let hash = self.create_hash(&config_queue.get_name(), partition);
 
                 self.facts.partition_facts.insert(
                     hash,
