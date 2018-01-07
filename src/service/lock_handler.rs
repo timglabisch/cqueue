@@ -6,16 +6,20 @@ use lock_handler::AcquiredLock;
 use cdrs::types::IntoRustByName;
 use std::clone::Clone;
 use dto::Partition;
+use service::config_service::SharedConfig;
+use service::config_service::ConfigHelper;
 
 pub struct LockHandler<'a, P> where P: Pool, P: 'a {
-    pool : &'a P
+    pool : &'a P,
+    config: SharedConfig
 }
 
 impl<'a, P> LockHandler<'a, P> where P: Pool, P: 'a {
 
-    pub fn new(pool: &'a P) -> Self {
+    pub fn new(pool: &'a P, config: SharedConfig) -> Self {
         LockHandler {
-            pool
+            pool,
+            config
         }
     }
 
@@ -63,6 +67,19 @@ impl<'a, P> LockHandler<'a, P> where P: Pool, P: 'a {
         if !applied {
             return Ok(None);
         }
+
+        let update_owner_query = QueryBuilder::new("UPDATE queue_locks USING TTL ? SET seed = ?, owner = ?, lock = ? WHERE queue = ? AND part = ? IF seed = ?").values(vec![
+            100.into(),
+            seed.into(),
+            self.config.get_endpoint().into(),
+            time.into(),
+            partition.get_queue_name().into(),
+            partition.get_id().into(),
+            seed.into(),
+        ]).finalize();
+
+        let update_owner_query_result : Frame = connection.query(update_owner_query)
+            .or_else(|_| Err("Update owner Query failed"))?;
 
         Ok(Some(AcquiredLock::new(partition.get_queue_name().to_string(), partition.get_id(), seed, time)))
     }

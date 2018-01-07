@@ -2,7 +2,7 @@ use std::fs::File;
 use toml;
 use std::io::Read;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct ConfigQueue {
     name: String,
     partitions_read: u32,
@@ -23,9 +23,10 @@ impl ConfigQueue {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Config {
-    queues: Vec<ConfigQueue>
+    pub endpoint: Option<String>,
+    pub queues: Vec<ConfigQueue>
 }
 
 impl Config {
@@ -41,6 +42,10 @@ impl Config {
         println!("{}", &buf);
 
         let config: Config = toml::from_str(&buf).map_err(|e| format!("{:#?}", e))?;
+
+        if !config.endpoint.is_some() {
+            return Err("argument \"endpoint\" is required. example: endpoint = \"[PUBLIC_IP]:[PORT]\"".to_string());
+        }
 
         Ok(config)
     }

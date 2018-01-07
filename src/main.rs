@@ -29,6 +29,7 @@ use service::fact::FactService;
 use service::lock_handler::LockHandler;
 use driver::Pool;
 use service::fact::PartitionLockType;
+use service::config_service::ConfigService;
 
 
 fn main() {
@@ -38,12 +39,18 @@ fn main() {
     //let mut pool : ::;
 
     let config = Config::new_from_file("config.toml").expect("could not read config.toml");
+    let config_service = ConfigService::new(config.clone());
+
+
 
     let mut fact_service = FactService::new();
-    fact_service.apply(&config);
+    fact_service.apply(&config); // todo, should use the config service
 
 
-    ::api::Api::run(fact_service.get_shared_facts());
+    ::api::Api::run(
+        fact_service.get_shared_facts(),
+        config_service.get_shared_config()
+    );
 
 
     let authenticator = PasswordAuthenticator::new("user", "pass");
@@ -63,13 +70,13 @@ fn main() {
         Ok(_) => true,
     };
 
-    run_maintain_locks(&pool, &mut fact_service);
+    run_maintain_locks(&pool, &mut fact_service, &config_service);
 
 }
 
-pub fn run_maintain_locks<P: Pool>(pool : &P, fact_service: &mut FactService) {
+pub fn run_maintain_locks<P: Pool>(pool : &P, fact_service: &mut FactService, config_service: &ConfigService) {
 
-    let mut lock_handler = LockHandler::new(pool);
+    let mut lock_handler = LockHandler::new(pool, config_service.get_shared_config());
 
     loop {
 

@@ -21,15 +21,17 @@ use driver::queue_handler::CassandraQueueHandler;
 use driver::queue_handler::QueueMsg;
 use driver::CPool as Pool;
 use service::fact::SharedFacts;
+use service::config_service::SharedConfig;
+use service::config_service::ConfigHelper;
 
 #[get("/")]
-pub fn index(facts: State<SharedFacts>) -> String {
+pub fn index(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
 
 
     let f = facts.clone();
     let facts = { f.read().expect("no poison expected").clone() };
 
-    format!("{:#?}", facts)
+    format!("{} => {:#?}", config.get_endpoint(), facts)
 }
 
 
@@ -125,11 +127,15 @@ impl Api {
         r2d2::Pool::new(config, manager).expect("could not get pool")
     }
 
-    pub fn run(shared_facts: SharedFacts) {
+    pub fn run(
+        shared_facts: SharedFacts,
+        shared_config: SharedConfig
+    ) {
         thread::spawn(|| {
             rocket::ignite()
                 .manage(Self::init_pool())
                 .manage(shared_facts)
+                .manage(shared_config)
                 .mount("/", routes![index, queue_get, push]).launch();
         });
     }
