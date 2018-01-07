@@ -2,10 +2,10 @@ endpoint = "127.0.0.1:8000"
 
 [[queues]]
 name = "cloudbackup"
-partitions_read = 50
-partitions_write = 50
+partitions_read = 2
+partitions_write = 2
 
 [[queues]]
 name = "foo"
-partitions_read = 50
-partitions_write = 50
+partitions_read = 2
+partitions_write = 2

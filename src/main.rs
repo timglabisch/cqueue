@@ -30,6 +30,7 @@ use service::lock_handler::LockHandler;
 use driver::Pool;
 use service::fact::PartitionLockType;
 use service::config_service::ConfigService;
+use service::global_fact_service::{GlobalFactCassandraService, GlobalFactService};
 
 
 fn main() {
@@ -77,6 +78,7 @@ fn main() {
 pub fn run_maintain_locks<P: Pool>(pool : &P, fact_service: &mut FactService, config_service: &ConfigService) {
 
     let mut lock_handler = LockHandler::new(pool, config_service.get_shared_config());
+    let global_fact_service = GlobalFactCassandraService::new(pool);
 
     loop {
 
@@ -141,6 +143,9 @@ pub fn run_maintain_locks<P: Pool>(pool : &P, fact_service: &mut FactService, co
 
 
         }
+
+        let x = global_fact_service.get_global_facts().expect("could not fetch global facts");
+        println!("jupala: {:#?}", x);
 
 
         fact_service.commit_facts();
