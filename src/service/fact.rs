@@ -2,11 +2,16 @@ use dto::Queue;
 use config::Config;
 use dto::Partition;
 use std::collections::HashMap;
+use time::Timespec;
+use std::collections::hash_map::Entry;
+use lock_handler::AcquiredLock;
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone)]
 pub struct PartitionFact {
     partition: Partition,
-    partition_type: PartitionType
+    partition_type: PartitionType,
+    partition_lock: PartitionLockType
 }
 
 #[derive(Debug, Clone)]
@@ -16,6 +21,16 @@ pub enum PartitionType {
     ReadWrite
 }
 
+#[derive(Debug, Clone)]
+pub enum PartitionLockType {
+    LockUntil {
+        lock: AcquiredLock,
+        owner: String
+    },
+    Unknown,
+    NotLocked
+}
+
 impl PartitionFact {
     pub fn new(
         partition: Partition,
@@ -23,12 +38,22 @@ impl PartitionFact {
     ) -> Self {
         PartitionFact {
             partition,
-            partition_type
+            partition_type,
+            partition_lock: PartitionLockType::Unknown
         }
     }
 
     pub fn get_partition(&self) -> &Partition {
         &self.partition
+    }
+
+    pub fn update_partition_lock(&mut self, lock : PartitionLockType)
+    {
+        self.partition_lock = lock;
+    }
+
+    pub fn get_partition_lock(&self) -> &PartitionLockType {
+        &self.partition_lock
     }
 
     pub fn is_readable(&self) -> bool {
@@ -66,14 +91,21 @@ impl Facts {
 
 }
 
+pub type SharedFacts = Arc<RwLock<Facts>>;
+
 pub struct FactService {
-    facts: Facts
+    facts: Facts,
+    shared_facts: SharedFacts
 }
 
 impl FactService {
     pub fn new() -> Self {
+
+        let facts = Facts::new(HashMap::new());
+
         FactService {
-            facts: Facts::new(HashMap::new())
+            facts: facts.clone(),
+            shared_facts: Arc::new(RwLock::new(facts))
         }
     }
 
@@ -81,10 +113,35 @@ impl FactService {
         format!("{}_{}", queue, partition)
     }
 
+    pub fn update_partition_lock(&mut self, partitions : &Partition, partition_lock_type: PartitionLockType)
+    {
+        let hash = self.create_hash(partitions.get_queue_name(), partitions.get_id());
+
+        match self.facts.partition_facts.get_mut(&hash) {
+            Some(e) => { e.update_partition_lock(partition_lock_type); },
+            None => {}
+        };
+    }
+
     pub fn get_facts(&self) -> Facts {
         self.facts.clone()
     }
 
+    pub fn get_shared_facts(&self) -> SharedFacts {
+        self.shared_facts.clone()
+    }
+
+    pub fn commit_facts(&self) {
+
+        let arc: Arc<RwLock<_>> = self.shared_facts.clone();
+
+        let mut lock = arc.write().expect("should be save, lock cant be poisened");
+
+        *lock = self.facts.clone();
+
+    }
+
+    // todo, doesnt make sense, should be a constructor
     pub fn apply(&mut self, config: &Config) {
 
         self.facts.partition_facts = HashMap::new();

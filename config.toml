@@ -1,9 +1,9 @@
 [[queues]]
 name = "cloudbackup"
-partitions_read = 2
-partitions_write = 1
+partitions_read = 50
+partitions_write = 50
 
 [[queues]]
 name = "foo"
-partitions_read = 1
-partitions_write = 1
+partitions_read = 50
+partitions_write = 50

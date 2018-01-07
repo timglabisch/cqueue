@@ -1,5 +1,3 @@
-extern crate cdrs;
-
 use r2d2::ManageConnection;
 use std::error::Error;
 use std::ops::Deref;
@@ -12,7 +10,6 @@ use cdrs::cluster::ClusterConnectionManager;
 use cdrs::frame::Frame;
 use cdrs::query::Query;
 
-pub mod lock_handler;
 pub mod offset_handler;
 pub mod queue_handler;
 

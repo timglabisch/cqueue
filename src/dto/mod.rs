@@ -24,4 +24,16 @@ impl Partition {
             id
         }
     }
+
+    pub fn get_id(&self) -> u32 {
+        self.id
+    }
+
+    pub fn get_queue_name(&self) -> &str {
+        &self.queue.name
+    }
+
+    pub fn get_queue(&self) -> &Queue {
+        &self.queue
+    }
 }

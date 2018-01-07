@@ -1,5 +1,6 @@
 use time::Timespec;
 
+#[derive(Debug, Clone)]
 pub struct AcquiredLock {
     queue: String,
     partition: u32,

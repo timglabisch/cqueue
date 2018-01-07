@@ -1,12 +1,11 @@
-extern crate rand;
-extern crate cdrs;
-
 use driver::Pool;
 use cdrs::query::QueryBuilder;
 use rand::random;
 use cdrs::frame::Frame;
 use lock_handler::AcquiredLock;
 use cdrs::types::IntoRustByName;
+use std::clone::Clone;
+use dto::Partition;
 
 pub struct LockHandler<'a, P> where P: Pool, P: 'a {
     pool : &'a P
@@ -20,15 +19,15 @@ impl<'a, P> LockHandler<'a, P> where P: Pool, P: 'a {
         }
     }
 
-    pub fn lock_acquire(&mut self, queue: &str, partition: u32) -> Result<Option<AcquiredLock>, String>
+    pub fn lock_acquire(&mut self, partition : &Partition) -> Result<Option<AcquiredLock>, String>
     {
 
         let mut pool = self.pool.get().map_err(|_| "could not get conection from pool".to_string())?;
         let mut connection = pool.getConnection();
 
         let query = QueryBuilder::new("INSERT INTO queue_locks (queue, part) VALUES (?,?) IF NOT EXISTS USING TTL ?").values(vec![
-            queue.into(),
-            partition.into(),
+            partition.get_queue_name().into(),
+            partition.get_id().into(),
             5.into()
         ]).finalize();
 
@@ -37,12 +36,11 @@ impl<'a, P> LockHandler<'a, P> where P: Pool, P: 'a {
         let seed = random::<u32>();
 
         let time = ::time::get_time();
-        let update_lock_query = QueryBuilder::new("UPDATE queue_locks USING TTL ? SET lock = ?, seed = ? WHERE queue = ? AND part = ? IF seed = null").values(vec![
-            5.into(),
-            time.into(),
+        let update_lock_query = QueryBuilder::new("UPDATE queue_locks USING TTL ? SET seed = ? WHERE queue = ? AND part = ? IF seed = null").values(vec![
+            100.into(),
             seed.into(),
-            queue.into(),
-            partition.into()
+            partition.get_queue_name().into(),
+            partition.get_id().into()
         ]).finalize();
 
         let update_lock_query_result : Frame = connection.query(update_lock_query)
@@ -66,10 +64,10 @@ impl<'a, P> LockHandler<'a, P> where P: Pool, P: 'a {
             return Ok(None);
         }
 
-        Ok(Some(AcquiredLock::new(queue.to_string(), partition, seed, time)))
+        Ok(Some(AcquiredLock::new(partition.get_queue_name().to_string(), partition.get_id(), seed, time)))
     }
 
-    pub fn lock_renew(&mut self, lock: &mut AcquiredLock) -> Result<bool, String> {
+    pub fn lock_renew(&mut self, lock: &AcquiredLock) -> Result<Option<AcquiredLock>, String> {
 
 
         let mut pool = self.pool.get().map_err(|_| "could not get conection from pool".to_string())?;
@@ -77,17 +75,17 @@ impl<'a, P> LockHandler<'a, P> where P: Pool, P: 'a {
 
         let valid_until = ::time::get_time();
 
-        let update_lock_query = QueryBuilder::new("UPDATE queue_locks USING TTL ? SET lock = ?, seed = ? WHERE queue = ? AND part = ? IF seed = ?").values(vec![
-            5.into(),
-            valid_until.into(),
+        let update_lock_query = QueryBuilder::new("UPDATE queue_locks USING TTL ? SET seed = ? WHERE queue = ? AND part = ? IF seed = ?").values(vec![
+            100.into(),
             lock.get_seed().into(),
             lock.get_queue().into(),
             lock.get_partition().into(),
-            //lock.get_valid_until().clone().into(),
             lock.get_seed().into(),
         ]).finalize();
 
-        lock.update_valid_until(valid_until);
+        let mut updated_lock = lock.clone();
+
+        updated_lock.update_valid_until(valid_until);
 
         let update_lock_query_result : Frame = connection.query(update_lock_query)
             .or_else(|_| Err("[renew lock]  Update Queue Locks failed"))?;
@@ -106,7 +104,11 @@ impl<'a, P> LockHandler<'a, P> where P: Pool, P: 'a {
             .or_else(|_| Err("[renew lock] could not find applied field".to_string()))?
             .ok_or_else(|| "[renew lock] could not parse [applied] field".to_string())?;
 
-        Ok(applied)
+        if !applied {
+            return Ok(None);
+        }
+
+        Ok(Some(updated_lock.clone()))
     }
 
 }

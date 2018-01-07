@@ -20,10 +20,16 @@ use rand::Rng;
 use driver::queue_handler::CassandraQueueHandler;
 use driver::queue_handler::QueueMsg;
 use driver::CPool as Pool;
+use service::fact::SharedFacts;
 
 #[get("/")]
-pub fn index(csdr: State<Pool>) -> &'static str {
-    "ok"
+pub fn index(facts: State<SharedFacts>) -> String {
+
+
+    let f = facts.clone();
+    let facts = { f.read().expect("no poison expected").clone() };
+
+    format!("{:#?}", facts)
 }
 
 
@@ -95,6 +101,7 @@ impl<E, A, T> CustomizeConnection<::cdrs::client::Session<A, T>, E> for Connecti
           E: ::std::error::Error + 'static
 {
     fn on_acquire(&self, session: &mut ::cdrs::client::Session<A, T>) -> Result<(), E> {
+        println!("-----new connection----");
         let query = QueryBuilder::new("use queue;").finalize();
 
         session.query(query, false, false).expect("Insert into queue_locks failed");
@@ -107,7 +114,7 @@ pub struct Api;
 impl Api {
     pub fn init_pool() -> Pool {
         let config = r2d2::Config::builder()
-            .pool_size(15)
+            .pool_size(1)
             .connection_customizer(Box::new(ConnectionCustomizerKeyspace::new()))
             .build();
 
@@ -118,10 +125,11 @@ impl Api {
         r2d2::Pool::new(config, manager).expect("could not get pool")
     }
 
-    pub fn run() {
+    pub fn run(shared_facts: SharedFacts) {
         thread::spawn(|| {
             rocket::ignite()
                 .manage(Self::init_pool())
+                .manage(shared_facts)
                 .mount("/", routes![index, queue_get, push]).launch();
         });
     }
