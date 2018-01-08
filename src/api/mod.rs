@@ -86,10 +86,32 @@ pub fn info(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
         buffer.write_str("null");
     };
 
+
     buffer.write_str(",\n");
     buffer.write_str("\t\"partitons\":{");
     buffer.write_str(&partitions);
-    buffer.write_str("\n\t}\n}");
+    buffer.write_str("\n\t},");
+
+
+    let locks = facts.partition_facts.iter().map(|(_, partiton_fact)|{
+
+        let mut buffer = String::new();
+
+        buffer.write_str(&format!("\n\t\t\"{}_{}\":", partiton_fact.get_partition().get_queue_name(), partiton_fact.get_partition().get_id()));
+        buffer.write_str("{\n");
+        buffer.write_str(&format!("\t\t\t\"queue\": \"{},\"\n", partiton_fact.get_partition().get_queue_name()));
+        buffer.write_str(&format!("\t\t\t\"partition\": {}\n", partiton_fact.get_partition().get_id()));
+        buffer.write_str("\t\t}");
+
+        buffer
+
+    }).collect::<Vec<String>>().join(",");
+
+    buffer.write_str("\n\t\"locks\":{");
+    buffer.write_str(&locks);
+    buffer.write_str("\n\t}");
+
+    buffer.write_str("\n}");
 
     buffer
 }
