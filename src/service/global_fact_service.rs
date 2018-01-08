@@ -9,8 +9,8 @@ use dto::Queue;
 #[derive(Debug, Clone)]
 pub struct GlobalFact {
     pub partition: Partition,
-    pub lock_until: Timespec,
-    pub owner: String,
+    pub lock_until: Option<Timespec>,
+    pub owner: Option<String>,
 }
 
 pub struct GlobalFactCassandraService<'a, P> where P: Pool, P: 'a {
@@ -54,24 +54,22 @@ impl<'a, P> GlobalFactService for GlobalFactCassandraService<'a, P> where P: Poo
                 let raw_partition : i32 = row
                     .get_by_name("part")
                     .or_else(|_| Err("[parse_from_cassandra_row] could not find field part".to_string()))?
-                    .ok_or_else(|| "[renew lock] could not parse field part".to_string())?;
+                    .ok_or_else(|| "[renew lock] could not parse field partition".to_string())?;
 
                 let raw_queue : String = row
                     .get_by_name("queue")
                     .or_else(|_| Err("[parse_from_cassandra_row] could not find field part".to_string()))?
-                    .ok_or_else(|| "[renew lock] could not parse field part".to_string())?;
+                    .ok_or_else(|| "[renew lock] could not parse field raw_queue".to_string())?;
 
                 Ok(
                     GlobalFact {
                         partition: Partition::new(Queue::new(raw_queue), raw_partition as u32),
                         lock_until: row
                             .get_by_name("lock")
-                            .or_else(|_| Err("[parse_from_cassandra_row] could not find field part".to_string()))?
-                            .ok_or_else(|| "[renew lock] could not parse field part".to_string())?,
+                            .or_else(|_| Err("[parse_from_cassandra_row] could not find field part".to_string()))?,
                         owner: row
                             .get_by_name("owner")
-                            .or_else(|_| Err("[parse_from_cassandra_row] could not find field part".to_string()))?
-                            .ok_or_else(|| "[renew lock] could not parse field part".to_string())?,
+                            .or_else(|_| Err("[parse_from_cassandra_row] could not find field part".to_string()))?,
                     }
                 )
 

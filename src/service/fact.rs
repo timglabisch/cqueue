@@ -1,3 +1,5 @@
+extern crate time;
+
 use dto::Queue;
 use config::Config;
 use dto::Partition;
@@ -7,6 +9,7 @@ use std::collections::hash_map::Entry;
 use lock_handler::AcquiredLock;
 use std::sync::{Arc, RwLock};
 use service::global_fact_service::GlobalFact;
+use time::Tm;
 
 #[derive(Debug, Clone)]
 pub struct PartitionFact {
@@ -78,6 +81,7 @@ impl PartitionFact {
 pub struct Facts {
     pub partition_facts: HashMap<String, PartitionFact>,
     pub global_partition_facts: HashMap<String, GlobalFact>,
+    pub global_partition_facts_updated_at: Option<Tm>
 }
 
 impl Facts {
@@ -89,7 +93,8 @@ impl Facts {
     {
         Facts {
             partition_facts,
-            global_partition_facts
+            global_partition_facts,
+            global_partition_facts_updated_at: None
         }
     }
 
@@ -155,6 +160,7 @@ impl FactService {
         }
 
         self.facts.global_partition_facts = buf;
+        self.facts.global_partition_facts_updated_at = Some(::time::now_utc());
     }
 
     // todo, doesnt make sense, should be a constructor

@@ -23,11 +23,79 @@ use driver::CPool as Pool;
 use service::fact::SharedFacts;
 use service::config_service::SharedConfig;
 use service::config_service::ConfigHelper;
+use service::global_fact_service::GlobalFact;
+use std::fmt::Write;
+
+#[get("/info")]
+pub fn info(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
+    let f = facts.clone();
+    let facts = { f.read().expect("no poison expected").clone() };
+
+
+    let partitions = facts.global_partition_facts
+        .iter()
+        .map(|(_, global_fact)| {
+            let mut buffer = String::new();
+
+            buffer.write_str(&format!("\n\t\t\"{}_{}\": {{\n", global_fact.partition.get_queue_name(), &global_fact.partition.get_id().to_string()));
+
+            buffer.write_str("\t\t\t\"partition_id\": ");
+            buffer.write_str(&global_fact.partition.get_id().to_string());
+            buffer.write_str(",\n");
+
+            buffer.write_str("\t\t\t\"queue_name\": \"");
+            buffer.write_str(global_fact.partition.get_queue_name());
+            buffer.write_str("\",\n");
+
+
+            if let Some(ref lock_since) = global_fact.lock_until {
+                buffer.write_str("\t\t\t\"lock_since\": \"");
+                buffer.write_str(&::time::at_utc(lock_since.clone()).rfc3339().to_string());
+                buffer.write_str("\"");
+            } else {
+                buffer.write_str("\t\t\t\"lock_since\": null");
+            };
+
+            buffer.write_str(",\n");
+
+            if let Some(ref owner) = global_fact.owner {
+                buffer.write_str("\t\t\t\"endpoint\": \"");
+                buffer.write_str(owner);
+                buffer.write_str("\"");
+            } else {
+                buffer.write_str("\t\t\t\"endpoint\": null");
+            };
+
+            buffer.write_str("\n\t\t}");
+
+            buffer
+        })
+        .collect::<Vec<String>>()
+        .join(",");
+
+
+    let mut buffer = String::new();
+    buffer.write_str("{\n");
+    buffer.write_str("\t\"global_partition_facts_updated_at\": ");
+
+    if let Some(ref global_partition_facts_updated_at) = facts.global_partition_facts_updated_at {
+        buffer.write_str("\"");
+        buffer.write_str(&global_partition_facts_updated_at.rfc3339().to_string());
+        buffer.write_str("\"");
+    } else {
+        buffer.write_str("null");
+    };
+
+    buffer.write_str(",\n");
+    buffer.write_str("\t\"partitons\":{");
+    buffer.write_str(&partitions);
+    buffer.write_str("\n\t}\n}");
+
+    buffer
+}
 
 #[get("/")]
 pub fn index(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
-
-
     let f = facts.clone();
     let facts = { f.read().expect("no poison expected").clone() };
 
@@ -72,8 +140,7 @@ pub fn queue_get(queue: String, partition: u32, offset: u32, csdr: State<Pool>) 
 
     match pool.get() {
         Ok(mut conn) => {
-
-            let res : Result<Option<QueueMsg>, String> = conn.get_queue_msg(&queue, partition, offset);
+            let res: Result<Option<QueueMsg>, String> = conn.get_queue_msg(&queue, partition, offset);
 
             match res {
                 Err(e) => format!("{{\"success\": false, \"reason\": \"{}\" }}", e),
@@ -129,14 +196,14 @@ impl Api {
 
     pub fn run(
         shared_facts: SharedFacts,
-        shared_config: SharedConfig
+        shared_config: SharedConfig,
     ) {
         thread::spawn(|| {
             rocket::ignite()
                 .manage(Self::init_pool())
                 .manage(shared_facts)
                 .manage(shared_config)
-                .mount("/", routes![index, queue_get, push]).launch();
+                .mount("/", routes![info, index, queue_get, push]).launch();
         });
     }
 }
