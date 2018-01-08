@@ -25,6 +25,7 @@ use service::config_service::SharedConfig;
 use service::config_service::ConfigHelper;
 use service::global_fact_service::GlobalFact;
 use std::fmt::Write;
+use service::fact::PartitionLockType;
 
 #[get("/info")]
 pub fn info(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
@@ -76,6 +77,7 @@ pub fn info(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
 
     let mut buffer = String::new();
     buffer.write_str("{\n");
+    buffer.write_str(&format!("\t\"now\": \"{}\",\n", &::time::now_utc().rfc3339().to_string()));
     buffer.write_str("\t\"global_partition_facts_updated_at\": ");
 
     if let Some(ref global_partition_facts_updated_at) = facts.global_partition_facts_updated_at {
@@ -99,8 +101,20 @@ pub fn info(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
 
         buffer.write_str(&format!("\n\t\t\"{}_{}\":", partiton_fact.get_partition().get_queue_name(), partiton_fact.get_partition().get_id()));
         buffer.write_str("{\n");
-        buffer.write_str(&format!("\t\t\t\"queue\": \"{},\"\n", partiton_fact.get_partition().get_queue_name()));
-        buffer.write_str(&format!("\t\t\t\"partition\": {}\n", partiton_fact.get_partition().get_id()));
+        buffer.write_str(&format!("\t\t\t\"queue\": \"{}\",\n", partiton_fact.get_partition().get_queue_name()));
+        buffer.write_str(&format!("\t\t\t\"partition\": {},\n", partiton_fact.get_partition().get_id()));
+        buffer.write_str(&format!("\t\t\t\"readable\": {},\n", if partiton_fact.is_readable() { "true" } else { "false" }));
+        buffer.write_str(&format!("\t\t\t\"writeable\": {},\n", if partiton_fact.is_writeable() { "true" } else { "false" }));
+
+        match *partiton_fact.get_partition_lock() {
+            PartitionLockType::LockUntil { ref lock, .. } => {
+                buffer.write_str(&format!("\t\t\t\"lock_until\": \"{}\"\n", &::time::at_utc(lock.get_valid_until().clone()).rfc3339().to_string()));
+            },
+            _  => {
+                buffer.write_str("\t\t\t\"lock_until\": null\n");
+            }
+        };
+
         buffer.write_str("\t\t}");
 
         buffer
