@@ -140,16 +140,12 @@ pub fn run_maintain_locks<P: Pool>(pool : &P, fact_service: &mut FactService, co
 
                 }
             }
-
-
         }
 
-        let x = global_fact_service.get_global_facts().expect("could not fetch global facts");
-        println!("jupala: {:#?}", x);
-
+        let global_facts = global_fact_service.get_global_facts().expect("could not fetch global facts");
+        fact_service.update_global_facts(global_facts);
 
         fact_service.commit_facts();
-        println!("--------------");
 
         thread::sleep(::std::time::Duration::from_millis(500));
 

@@ -6,6 +6,7 @@ use time::Timespec;
 use std::collections::hash_map::Entry;
 use lock_handler::AcquiredLock;
 use std::sync::{Arc, RwLock};
+use service::global_fact_service::GlobalFact;
 
 #[derive(Debug, Clone)]
 pub struct PartitionFact {
@@ -75,19 +76,22 @@ impl PartitionFact {
 
 #[derive(Debug, Clone)]
 pub struct Facts {
-    pub partition_facts: HashMap<String, PartitionFact>
+    pub partition_facts: HashMap<String, PartitionFact>,
+    pub global_partition_facts: HashMap<String, GlobalFact>,
 }
 
 impl Facts {
 
-    pub fn new(partition_facts: HashMap<String, PartitionFact>) -> Facts
+    pub fn new(
+        partition_facts: HashMap<String, PartitionFact>,
+        global_partition_facts: HashMap<String, GlobalFact>
+    ) -> Facts
     {
         Facts {
-            partition_facts
+            partition_facts,
+            global_partition_facts
         }
     }
-
-
 
 }
 
@@ -101,11 +105,11 @@ pub struct FactService {
 impl FactService {
     pub fn new() -> Self {
 
-        let facts = Facts::new(HashMap::new());
+        let facts = Facts::new(HashMap::new(), HashMap::new());
 
         FactService {
             facts: facts.clone(),
-            shared_facts: Arc::new(RwLock::new(facts))
+            shared_facts: Arc::new(RwLock::new(facts)),
         }
     }
 
@@ -139,6 +143,18 @@ impl FactService {
 
         *lock = self.facts.clone();
 
+    }
+
+    pub fn update_global_facts(&mut self, global_facts: Vec<GlobalFact>) {
+
+        let mut buf = HashMap::new();
+
+        for global_fact in global_facts {
+            let hash = self.create_hash(global_fact.partition.get_queue_name(), global_fact.partition.get_id());
+            buf.insert(hash, global_fact);
+        }
+
+        self.facts.global_partition_facts = buf;
     }
 
     // todo, doesnt make sense, should be a constructor

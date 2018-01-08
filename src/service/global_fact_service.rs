@@ -6,7 +6,7 @@ use cdrs::types::rows::Row;
 use cdrs::types::IntoRustByName;
 use dto::Queue;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GlobalFact {
     pub partition: Partition,
     pub lock_until: Timespec,
