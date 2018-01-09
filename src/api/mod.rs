@@ -1,7 +1,3 @@
-extern crate r2d2;
-extern crate cdrs;
-extern crate rand;
-
 use std::thread;
 use rocket;
 use cdrs::connection_manager::ConnectionManager;
@@ -26,6 +22,11 @@ use service::config_service::ConfigHelper;
 use service::global_fact_service::GlobalFact;
 use std::fmt::Write;
 use service::fact::PartitionLockType;
+use driver::offset_handler::SharedOffsetHandler;
+use driver::offset_handler::OffsetHandler;
+use std::sync::{RwLock, Arc};
+use dto::Partition;
+use dto::Queue;
 
 #[get("/info")]
 pub fn info(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
@@ -140,8 +141,13 @@ pub fn index(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
 
 
 #[post("/queue/<queue>", data = "<input>")]
-pub fn push(queue: String, input: String, csdr: State<Pool>) -> &'static str {
-    let pool: &Pool = &*csdr;
+pub fn push(queue: String, input: String, shared_offset_handler: State<Arc<RwLock<Box<OffsetHandler + Sync + Send>>>>) -> String {
+
+
+    let handler_lock = shared_offset_handler.clone();
+    let mut handler = handler_lock.write().expect("lock could not be poisened");
+
+    /*let pool: &Pool = &*csdr;
 
     match pool.get() {
         Ok(mut conn) => {
@@ -167,7 +173,12 @@ pub fn push(queue: String, input: String, csdr: State<Pool>) -> &'static str {
         Err(_) => {
             "{\"success\": false, \"reason\": \"could not get connection from pool\" }"
         }
-    }
+    }*/
+
+
+    let partiton = Partition::new(Queue::new("foo"), 1);
+
+    handler.get_latest_offset(&partiton).expect("nope").to_string()
 }
 
 #[get("/queue/<queue>/<partition>/<offset>")]
@@ -218,7 +229,7 @@ pub struct Api;
 
 impl Api {
     pub fn init_pool() -> Pool {
-        let config = r2d2::Config::builder()
+        let config = ::r2d2::Config::builder()
             .pool_size(1)
             .connection_customizer(Box::new(ConnectionCustomizerKeyspace::new()))
             .build();
@@ -227,18 +238,20 @@ impl Api {
         let authenticator = PasswordAuthenticator::new("user", "pass");
         let manager = ConnectionManager::new(transport, authenticator, Compression::None);
 
-        r2d2::Pool::new(config, manager).expect("could not get pool")
+        ::r2d2::Pool::new(config, manager).expect("could not get pool")
     }
 
     pub fn run(
         shared_facts: SharedFacts,
         shared_config: SharedConfig,
+        shared_offset_handler: Arc<RwLock<Box<OffsetHandler + Sync + Send>>>
     ) {
         thread::spawn(|| {
             rocket::ignite()
                 .manage(Self::init_pool())
                 .manage(shared_facts)
                 .manage(shared_config)
+                .manage(shared_offset_handler)
                 .mount("/", routes![info, index, queue_get, push]).launch();
         });
     }

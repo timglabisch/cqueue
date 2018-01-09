@@ -31,6 +31,9 @@ use driver::Pool;
 use service::fact::PartitionLockType;
 use service::config_service::ConfigService;
 use service::global_fact_service::{GlobalFactCassandraService, GlobalFactService};
+use driver::offset_handler::CassandraOffsetHandler;
+use std::sync::{Arc, RwLock};
+use driver::offset_handler::SharedOffsetHandler;
 
 
 fn main() {
@@ -42,16 +45,18 @@ fn main() {
     let config = Config::new_from_file("config.toml").expect("could not read config.toml");
     let config_service = ConfigService::new(config.clone());
 
-
-
     let mut fact_service = FactService::new();
     fact_service.apply(&config); // todo, should use the config service
+
+    let mut offset_handler = CassandraOffsetHandler::new(pool.clone());
 
 
     ::api::Api::run(
         fact_service.get_shared_facts(),
-        config_service.get_shared_config()
+        config_service.get_shared_config(),
+        Arc::new(RwLock::new(Box::new(offset_handler)))
     );
+
 
 
     let authenticator = PasswordAuthenticator::new("user", "pass");
