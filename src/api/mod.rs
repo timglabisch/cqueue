@@ -139,45 +139,29 @@ pub fn index(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
 }
 
 
-#[post("/queue/<queue>", data = "<input>")]
-pub fn push(queue: String, input: String, shared_offset_handler: State<Arc<RwLock<Box<OffsetHandler + Sync + Send>>>>) -> String {
+#[post("/queue/<queue>", data = "<content>")]
+pub fn push(
+    queue: String,
+    content: String,
+    shared_offset_handler_arc: State<Arc<RwLock<Box<OffsetHandler + Sync + Send>>>>,
+    queue_msg_service_arc: State<Arc<Box<QueueMsgService + Sync + Send>>>
+) -> String {
 
 
-    let handler_lock = shared_offset_handler.clone();
-    let mut handler = handler_lock.write().expect("lock could not be poisened");
+    let shared_offset_handler = &*shared_offset_handler_arc.clone();
+    let queue_msg_service = &*queue_msg_service_arc.clone();
 
-    /*let pool: &Pool = &*csdr;
+    // this lock ensures that id's are in order
+    // later on i should keep such a lock for each partition
+    let mut handler = shared_offset_handler.write().expect("lock could not be poisened");
 
-    match pool.get() {
-        Ok(mut conn) => {
-            let mut rng = thread_rng();
-            let partition: u32 = rng.gen_range(1, 4);
+    let partiton = Partition::new(Queue::new(queue), 1);
 
-            let mut session: &mut ::cdrs::client::Session<_, _> = conn.deref_mut();
+    let next_offset = handler.get_latest_offset(&partiton).expect("nope") + 1;
 
-            let next_id = session.get_latest_offset(&queue, partition).expect("could not get id") + 1;
+    queue_msg_service.push_queue_msg(&partiton, next_offset as u32, &content).expect("nope #2");
 
-            let query = ::cdrs::query::QueryBuilder::new("insert into queue (\"queue\", \"part\", \"id\", \"msg\", \"date\") values (?, ?, ?, ?, ?);").values(vec![
-                queue.into(),
-                partition.into(),
-                next_id.into(),
-                input.into(),
-                ::time::get_time().into()
-            ]).finalize();
-
-            session.query(query, false, false).expect("Insert into queue_locks failed");
-
-            "{\"success\": true }"
-        }
-        Err(_) => {
-            "{\"success\": false, \"reason\": \"could not get connection from pool\" }"
-        }
-    }*/
-
-
-    let partiton = Partition::new(Queue::new("foo"), 1);
-
-    handler.get_latest_offset(&partiton).expect("nope").to_string()
+    format!("{{\"success\": true, \"queue\": \"{}\", partition: {}  }}", partiton.get_queue_name(), partiton.get_id())
 }
 
 #[get("/queue/<queue>/<partition>/<offset>")]

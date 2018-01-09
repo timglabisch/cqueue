@@ -9,6 +9,9 @@ use dto::Partition;
 
 
 pub trait QueueMsgService {
+
+    fn push_queue_msg(&self, partition: &Partition, offset: u32, content: &str) -> Result<(), String>;
+
     fn get_queue_msg(&self, partition: &Partition, offset: u32) -> Result<Option<QueueMsg>, String>;
 }
 
@@ -65,6 +68,25 @@ impl CassandraQueueMsgService {
 }
 
 impl QueueMsgService for CassandraQueueMsgService {
+
+    fn push_queue_msg(&self, partition: &Partition, offset: u32, content: &str) -> Result<(), String> {
+
+        let raw_query = ::cdrs::query::QueryBuilder::new("insert into queue (\"queue\", \"part\", \"id\", \"msg\", \"date\") values (?, ?, ?, ?, ?);").values(vec![
+            partition.get_queue_name().into(),
+            partition.get_id().into(),
+            offset.into(),
+            content.into(),
+            ::time::get_time().into()
+        ]).finalize();
+
+        let mut pooled_conn = self.pool.get().map_err(|_| "[push_queue_msg] could not get connection from pool".to_string())?;
+
+        pooled_conn.getConnection().query(raw_query)
+            .or_else(|_| Err("[push_queue_msg] Select failed"))?;
+
+        Ok(())
+
+    }
 
     fn get_queue_msg(&self, partition: &Partition, offset: u32) -> Result<Option<QueueMsg>, String> {
 

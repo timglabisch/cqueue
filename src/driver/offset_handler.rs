@@ -46,18 +46,18 @@ impl<P> OffsetHandler for CassandraOffsetHandler<P> where P: Pool {
         ]).finalize();
 
 
-        let mut pooled_conn = self.pool.get().map_err(|_| "could not get connection from pool".to_string())?;
+        let mut pooled_conn = self.pool.get().map_err(|_| "[get_latest_offset] could not get connection from pool".to_string())?;
 
         let max_offset_query_result: ::cdrs::frame::Frame = pooled_conn.getConnection().query(max_offset_query)
-            .or_else(|_| Err("[renew lock]  Update Queue Locks failed"))?;
+            .or_else(|_| Err("[get_latest_offset]  Update Queue Locks failed"))?;
 
         let body = max_offset_query_result
             .get_body()
-            .or_else(|_| { Err("update queue_locks query failed") })?;
+            .or_else(|_| { Err("update get_latest_offset query failed") })?;
 
         let rows = body
             .into_rows()
-            .ok_or_else(|| "[renew lock] could not parse rows [applied] rows".to_string())?;
+            .ok_or_else(|| "[get_latest_offset] could not parse rows [applied] rows".to_string())?;
 
 
         if rows.len() == 0 {
@@ -67,10 +67,10 @@ impl<P> OffsetHandler for CassandraOffsetHandler<P> where P: Pool {
         Ok(
             rows
                 .get(0)
-                .ok_or_else(|| "[renew lock] could not find [applied] row".to_string())?
+                .ok_or_else(|| "[get_latest_offset] could not find [applied] row".to_string())?
                 .get_by_name("id")
                 .or_else(|_| Err("[renew lock] could not find applied field".to_string()))?
-                .ok_or_else(|| "[renew lock] could not parse [applied] field".to_string())?
+                .ok_or_else(|| "[get_latest_offset] could not parse [applied] field".to_string())?
         )
     }
 
