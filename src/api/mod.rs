@@ -13,8 +13,6 @@ use cdrs::query::QueryBuilder;
 use driver::offset_handler::CassandraOffsetHandler;
 use rand::thread_rng;
 use rand::Rng;
-use driver::queue_handler::CassandraQueueHandler;
-use driver::queue_handler::QueueMsg;
 use driver::CPool as Pool;
 use service::fact::SharedFacts;
 use service::config_service::SharedConfig;
@@ -27,6 +25,7 @@ use driver::offset_handler::OffsetHandler;
 use std::sync::{RwLock, Arc};
 use dto::Partition;
 use dto::Queue;
+use service::queue_msg_service::QueueMsgService;
 
 #[get("/info")]
 pub fn info(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
@@ -182,19 +181,20 @@ pub fn push(queue: String, input: String, shared_offset_handler: State<Arc<RwLoc
 }
 
 #[get("/queue/<queue>/<partition>/<offset>")]
-pub fn queue_get(queue: String, partition: u32, offset: u32, csdr: State<Pool>) -> String {
-    let pool: &Pool = &*csdr;
+pub fn queue_get(queue: String, partition: u32, offset: u32, queue_msg_service: State<Arc<Box<QueueMsgService + Sync + Send>>>) -> String {
 
-    match pool.get() {
-        Ok(mut conn) => {
-            let res: Result<Option<QueueMsg>, String> = conn.get_queue_msg(&queue, partition, offset);
+    let partiton = Partition::new(Queue::new(queue), partition);
 
-            match res {
-                Err(e) => format!("{{\"success\": false, \"reason\": \"{}\" }}", e),
-                Ok(None) => "{}".into(),
-                Ok(Some(msg)) => msg.content.into()
-            }
-        }
+    let msg_service = &*queue_msg_service.clone();
+    let msg = msg_service.get_queue_msg(&partiton, offset);
+
+    match msg {
+        Ok(Some(ref msg)) => {
+            format!("{{\"success\": true, \"content\": \"{}\" }}", msg.content)
+        },
+        Ok(None) => {
+            "{\"success\": false, \"reason\": \"could not find msg\" }".into()
+        },
         Err(_) => {
             "{\"success\": false, \"reason\": \"could not get connection from pool\" }".into()
         }
@@ -244,7 +244,8 @@ impl Api {
     pub fn run(
         shared_facts: SharedFacts,
         shared_config: SharedConfig,
-        shared_offset_handler: Arc<RwLock<Box<OffsetHandler + Sync + Send>>>
+        shared_offset_handler: Arc<RwLock<Box<OffsetHandler + Sync + Send>>>,
+        queue_msg_service: Arc<Box<QueueMsgService + Sync + Send>>
     ) {
         thread::spawn(|| {
             rocket::ignite()
@@ -252,6 +253,7 @@ impl Api {
                 .manage(shared_facts)
                 .manage(shared_config)
                 .manage(shared_offset_handler)
+                .manage(queue_msg_service)
                 .mount("/", routes![info, index, queue_get, push]).launch();
         });
     }

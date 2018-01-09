@@ -34,6 +34,7 @@ use service::global_fact_service::{GlobalFactCassandraService, GlobalFactService
 use driver::offset_handler::CassandraOffsetHandler;
 use std::sync::{Arc, RwLock};
 use driver::offset_handler::SharedOffsetHandler;
+use service::queue_msg_service::CassandraQueueMsgService;
 
 
 fn main() {
@@ -50,11 +51,13 @@ fn main() {
 
     let mut offset_handler = CassandraOffsetHandler::new(pool.clone());
 
+    let queue_msg_service = CassandraQueueMsgService::new(Box::new(pool.clone()));
 
     ::api::Api::run(
         fact_service.get_shared_facts(),
         config_service.get_shared_config(),
-        Arc::new(RwLock::new(Box::new(offset_handler)))
+        Arc::new(RwLock::new(Box::new(offset_handler))),
+        Arc::new(Box::new(queue_msg_service))
     );
 
 

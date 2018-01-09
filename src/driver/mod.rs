@@ -11,7 +11,6 @@ use cdrs::frame::Frame;
 use cdrs::query::Query;
 
 pub mod offset_handler;
-pub mod queue_handler;
 
 pub type CPool = ::r2d2::Pool<::cdrs::connection_manager::ConnectionManager<::cdrs::authenticators::PasswordAuthenticator<'static>, ::cdrs::transport::TransportTcp>>;
 

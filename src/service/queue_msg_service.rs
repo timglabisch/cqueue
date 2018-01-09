@@ -1,12 +1,16 @@
-extern crate cdrs;
-
 use cdrs::transport::CDRSTransport;
 use cdrs::query::QueryBuilder;
 use cdrs::types::IntoRustByName;
 use cdrs::client::Session;
 use cdrs::types::rows::Row;
 use cdrs::authenticators::Authenticator;
+use driver::Pool;
+use dto::Partition;
 
+
+pub trait QueueMsgService {
+    fn get_queue_msg(&self, partition: &Partition, offset: u32) -> Result<Option<QueueMsg>, String>;
+}
 
 pub struct QueueMsg {
     queue: String,
@@ -48,24 +52,34 @@ impl QueueMsg {
     }
 }
 
-pub trait CassandraQueueHandler {
-    fn get_queue_msg(&mut self, queue: &str, partition: u32, offset: u32) -> Result<Option<QueueMsg>, String>;
+pub struct CassandraQueueMsgService {
+    pool: Box<Pool + Send + Sync>
 }
 
+impl CassandraQueueMsgService {
+    pub fn new(pool: Box<Pool  + Send + Sync>) -> Self {
+        CassandraQueueMsgService {
+            pool
+        }
+    }
+}
 
-impl<A, T> CassandraQueueHandler for Session<A, T> where A: Authenticator, T: CDRSTransport {
-    fn get_queue_msg(&mut self, queue: &str, partition: u32, offset: u32) -> Result<Option<QueueMsg>, String> {
+impl QueueMsgService for CassandraQueueMsgService {
+
+    fn get_queue_msg(&self, partition: &Partition, offset: u32) -> Result<Option<QueueMsg>, String> {
+
         let raw_query = QueryBuilder::new("select * from queue where queue = ? and part = ? and id = ? limit 1;").values(vec![
-            queue.into(),
-            partition.into(),
+            partition.get_queue_name().into(),
+            partition.get_id().into(),
             offset.into()
         ]).finalize();
 
+        let mut pooled_conn = self.pool.get().map_err(|_| "[get_queue_msg] could not get connection from pool".to_string())?;
 
-        let raw_query_resulr: ::cdrs::frame::Frame = self.query(raw_query, false, false)
+        let raw_query_result: ::cdrs::frame::Frame = pooled_conn.getConnection().query(raw_query)
             .or_else(|_| Err("[get_queue_msg] Select failed"))?;
 
-        let body = raw_query_resulr
+        let body = raw_query_result
             .get_body()
             .or_else(|_| { Err("[get_queue_msg] could not get body") })?;
 
@@ -79,7 +93,7 @@ impl<A, T> CassandraQueueHandler for Session<A, T> where A: Authenticator, T: CD
         }
 
         if rows.len() > 1 {
-            return Err("to much rows returned".to_string());
+            return Err("[get_queue_msg] to much rows returned".to_string());
         }
 
         match rows.first() {
@@ -91,5 +105,8 @@ impl<A, T> CassandraQueueHandler for Session<A, T> where A: Authenticator, T: CD
                 }
             }
         }
+
+
     }
+
 }
