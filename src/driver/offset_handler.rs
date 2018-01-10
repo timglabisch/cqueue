@@ -8,37 +8,99 @@ use driver::Pool;
 use std::sync::{RwLock, Arc};
 use driver::Connection;
 use dto::Queue;
-
-pub trait OffsetHandler {
-
-    fn get_latest_offset(&mut self, partition : &Partition) -> Result<i32, String>;
-
-    fn commit(&mut self, queue: &str, partition : &Partition, offset: i32) -> Result<(), String>;
-
-    fn get_last_commited_offset(&mut self, partition : &Partition) -> Result<i32, String>;
-
-}
+use std::collections::HashMap;
+use service::fact::SharedFacts;
+use service::fact::PartitionLockType;
+use std::collections::hash_map::Entry;
 
 pub type SharedOffsetHandler = Arc<RwLock<Box<OffsetHandler>>>;
 
-pub struct CassandraOffsetHandler<P> where P: Pool {
-    pool: P
+
+pub struct OffsetHandler {
+    driver_handler: CassandraOffsetHandler,
+    partitions: RwLock<HashMap<String, RwLock<i32>>>,
+    shared_facts: SharedFacts
 }
 
+impl OffsetHandler {
 
-impl<P> CassandraOffsetHandler<P> where P: Pool {
+    pub fn new(
+        driver_handler: CassandraOffsetHandler,
+        shared_facts: SharedFacts
+    ) -> Self {
+        OffsetHandler {
+            driver_handler,
+            partitions: RwLock::new(HashMap::new()),
+            shared_facts
+        }
+    }
 
-    pub fn new(pool: P) -> Self {
+    pub fn block_partition_and<T>(&self, partition : &Partition, cb : T) -> Result<(), String> where T: Fn(&Partition, i32) -> Result<(), String> {
+
+        let partition_lock_type = {
+            let shared_fact_arc = self.shared_facts.clone();
+            let shared_fact = shared_fact_arc.read().expect("should not be poinsened");
+            shared_fact.get_partition_fact(&partition)
+                .and_then(|p| Some(p.get_partition_lock().clone()))
+        };
+
+        let aquired_lock = match partition_lock_type {
+            Some(PartitionLockType::LockUntil { lock, ..}) => {
+                lock
+            },
+            _ => {
+                return Err("we dont maintain the lock, so it's not possible to block the partition".to_string());
+            }
+        };
+
+        // todo, here we need to check if we've enought time.
+
+        let hash = partition.to_string();
+
+        // todo, this could become a memory leak
+        {
+            let mut partition_map = self.partitions.write().expect("lock could not be poisened");
+
+            match partition_map.entry(hash.clone()) {
+                Entry::Vacant(entry) => {
+                    entry.insert(RwLock::new(self.driver_handler.get_latest_offset(&partition)?));
+                },
+                _ => {}
+            };
+        }
+
+        {
+            let partitions = self.partitions.read().expect("lock shoildnt be poisened");
+
+            let mut partition_lock = partitions.get(&hash).expect("must be exists, because we never clean it up");
+
+            let mut partition_write_lock_guard = partition_lock.write().expect("partition_lock should not poisened");
+
+            let next_offset = &*partition_write_lock_guard + 1;
+
+            let locked_function = cb(partition, next_offset)?;
+
+            *partition_write_lock_guard = next_offset;
+        }
+
+        Ok(())
+    }
+
+}
+
+pub struct CassandraOffsetHandler {
+    pool: Box<Pool + Send + Sync>
+}
+
+impl CassandraOffsetHandler {
+
+    pub fn new(pool: Box<Pool + Send + Sync>) -> Self {
         CassandraOffsetHandler {
             pool
         }
     }
 
-}
-
-impl<P> OffsetHandler for CassandraOffsetHandler<P> where P: Pool {
-
-    fn get_latest_offset(&mut self, partition : &Partition) -> Result<i32, String>
+    fn get_latest_offset(&self, partition : &Partition) -> Result<i32, String>
     {
         let max_offset_query = QueryBuilder::new("select id from queue where queue = ? and part = ? order by id desc limit 1;").values(vec![
             partition.get_queue_name().into(),

@@ -36,4 +36,8 @@ impl Partition {
     pub fn get_queue(&self) -> &Queue {
         &self.queue
     }
+
+    pub fn to_string(&self) -> String {
+        format!("{}_{}", self.get_queue_name(), self.get_id())
+    }
 }

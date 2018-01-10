@@ -98,6 +98,14 @@ impl Facts {
         }
     }
 
+    pub fn get_partition_fact(&self, partition: &Partition) -> Option<&PartitionFact> {
+        self.partition_facts.get(&partition.to_string())
+    }
+
+    pub fn get_global_partition_fact(&self, partition: &Partition) -> Option<&GlobalFact> {
+        self.global_partition_facts.get(&partition.to_string())
+    }
+
 }
 
 pub type SharedFacts = Arc<RwLock<Facts>>;
@@ -118,13 +126,10 @@ impl FactService {
         }
     }
 
-    pub fn create_hash(&self, queue: &str, partition: u32) -> String {
-        format!("{}_{}", queue, partition)
-    }
 
-    pub fn update_partition_lock(&mut self, partitions : &Partition, partition_lock_type: PartitionLockType)
+    pub fn update_partition_lock(&mut self, partition : &Partition, partition_lock_type: PartitionLockType)
     {
-        let hash = self.create_hash(partitions.get_queue_name(), partitions.get_id());
+        let hash = partition.to_string();
 
         match self.facts.partition_facts.get_mut(&hash) {
             Some(e) => { e.update_partition_lock(partition_lock_type); },
@@ -155,8 +160,7 @@ impl FactService {
         let mut buf = HashMap::new();
 
         for global_fact in global_facts {
-            let hash = self.create_hash(global_fact.partition.get_queue_name(), global_fact.partition.get_id());
-            buf.insert(hash, global_fact);
+            buf.insert(global_fact.partition.to_string(), global_fact);
         }
 
         self.facts.global_partition_facts = buf;
@@ -194,10 +198,8 @@ impl FactService {
                     partition_type
                 );
 
-                let hash = self.create_hash(&config_queue.get_name(), partition);
-
                 self.facts.partition_facts.insert(
-                    hash,
+                    partition.to_string(),
                     fact
                 );
 

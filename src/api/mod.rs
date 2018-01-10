@@ -143,23 +143,20 @@ pub fn index(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
 pub fn push(
     queue: String,
     content: String,
-    shared_offset_handler_arc: State<Arc<RwLock<Box<OffsetHandler + Sync + Send>>>>,
+    mut offset_handler: State<OffsetHandler>,
     queue_msg_service_arc: State<Arc<Box<QueueMsgService + Sync + Send>>>
 ) -> String {
 
 
-    let shared_offset_handler = &*shared_offset_handler_arc.clone();
     let queue_msg_service = &*queue_msg_service_arc.clone();
-
-    // this lock ensures that id's are in order
-    // later on i should keep such a lock for each partition
-    let mut handler = shared_offset_handler.write().expect("lock could not be poisened");
 
     let partiton = Partition::new(Queue::new(queue), 1);
 
-    let next_offset = handler.get_latest_offset(&partiton).expect("nope") + 1;
 
-    queue_msg_service.push_queue_msg(&partiton, next_offset as u32, &content).expect("nope #2");
+    offset_handler.block_partition_and(&partiton, |partition, offset| {
+        queue_msg_service.push_queue_msg(&partiton, offset as u32, &content)
+    }).expect("oh no");
+
 
     format!("{{\"success\": true, \"queue\": \"{}\", partition: {}  }}", partiton.get_queue_name(), partiton.get_id())
 }
@@ -228,7 +225,7 @@ impl Api {
     pub fn run(
         shared_facts: SharedFacts,
         shared_config: SharedConfig,
-        shared_offset_handler: Arc<RwLock<Box<OffsetHandler + Sync + Send>>>,
+        shared_offset_handler: OffsetHandler,
         queue_msg_service: Arc<Box<QueueMsgService + Sync + Send>>
     ) {
         thread::spawn(|| {
