@@ -133,7 +133,9 @@ impl FactService {
 
         match self.facts.partition_facts.get_mut(&hash) {
             Some(e) => { e.update_partition_lock(partition_lock_type); },
-            None => {}
+            None => {
+                println!("should never happen {}", partition.to_string());
+            }
         };
     }
 
@@ -180,27 +182,27 @@ impl FactService {
                 config_queue.get_partitions_write()
             };
 
-            for partition in 1..partition_count + 1 {
+            for partition_index in 1..partition_count + 1 {
 
-                let partition_type = if partition <= config_queue.get_partitions_read() && partition <= config_queue.get_partitions_write() {
+                let partition_type = if partition_index <= config_queue.get_partitions_read() && partition_index <= config_queue.get_partitions_write() {
                     PartitionType::ReadWrite
-                } else if partition <= config_queue.get_partitions_write() {
+                } else if partition_index <= config_queue.get_partitions_write() {
                     PartitionType::Write
                 } else {
                     PartitionType::Read
                 };
 
-                let fact = PartitionFact::new(
-                    Partition::new(
-                        Queue::new(config_queue.get_name().to_string()),
-                        partition
-                    ),
-                    partition_type
+                let partition = Partition::new(
+                    Queue::new(config_queue.get_name().to_string()),
+                    partition_index
                 );
 
                 self.facts.partition_facts.insert(
                     partition.to_string(),
-                    fact
+                    PartitionFact::new(
+                        partition,
+                        partition_type
+                    )
                 );
 
             }
