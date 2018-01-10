@@ -7,5 +7,5 @@ partitions_write = 2
 
 [[queues]]
 name = "foo"
-partitions_read = 2
-partitions_write = 2
+partitions_read = 5
+partitions_write = 5
