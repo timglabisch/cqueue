@@ -12,6 +12,8 @@ use std::collections::HashMap;
 use service::fact::SharedFacts;
 use service::fact::PartitionLockType;
 use std::collections::hash_map::Entry;
+use rand;
+use std::ops::Deref;
 
 pub type SharedOffsetHandler = Arc<RwLock<Box<OffsetHandler>>>;
 
@@ -33,6 +35,30 @@ impl OffsetHandler {
             partitions: RwLock::new(HashMap::new()),
             shared_facts
         }
+    }
+
+    pub fn block_queue_and<T>(&self, queue : &Queue, cb : T) -> Result<(), String> where T: Fn(&Partition, i32) -> Result<(), String> {
+
+        let partition = {
+            let shared_fact_arc = self.shared_facts.clone();
+            let shared_fact = shared_fact_arc.read().expect("should not be poinsened");
+
+
+            let mut rng = rand::thread_rng();
+            let mut samples : &Vec<u32> = shared_fact
+                .deref()
+                .partitions_by_queue
+                .get(queue.get_name())
+                .ok_or_else(|| "could not find any partitions for queue".to_string())?
+            ;
+
+            let sample = rand::sample(&mut rng, samples, 1);
+
+            let x = sample.first().expect("could not find any partition").clone();
+            Partition::new(queue.clone(), *x)
+        };
+
+        self.block_partition_and(&partition, cb)
     }
 
     pub fn block_partition_and<T>(&self, partition : &Partition, cb : T) -> Result<(), String> where T: Fn(&Partition, i32) -> Result<(), String> {

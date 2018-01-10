@@ -9,6 +9,10 @@ impl Queue {
             name: name.into()
         }
     }
+
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
 }
 
 #[derive(Debug, Clone)]

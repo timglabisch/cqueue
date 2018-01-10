@@ -81,7 +81,8 @@ impl PartitionFact {
 pub struct Facts {
     pub partition_facts: HashMap<String, PartitionFact>,
     pub global_partition_facts: HashMap<String, GlobalFact>,
-    pub global_partition_facts_updated_at: Option<Tm>
+    pub global_partition_facts_updated_at: Option<Tm>,
+    pub partitions_by_queue: HashMap<String, Vec<u32>>
 }
 
 impl Facts {
@@ -94,7 +95,8 @@ impl Facts {
         Facts {
             partition_facts,
             global_partition_facts,
-            global_partition_facts_updated_at: None
+            global_partition_facts_updated_at: None,
+            partitions_by_queue: HashMap::new()
         }
     }
 
@@ -181,6 +183,8 @@ impl FactService {
             } else {
                 config_queue.get_partitions_write()
             };
+
+            self.facts.partitions_by_queue.insert(config_queue.get_name().to_string(), (1..partition_count + 1).collect());
 
             for partition_index in 1..partition_count + 1 {
 

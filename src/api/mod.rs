@@ -139,9 +139,10 @@ pub fn index(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
 }
 
 
-#[post("/queue/<queue>", data = "<content>")]
-pub fn push(
+#[post("/queue/<queue>/<partition_id>", data = "<content>")]
+pub fn push_partition(
     queue: String,
+    partition_id: u32,
     content: String,
     mut offset_handler: State<OffsetHandler>,
     queue_msg_service_arc: State<Arc<Box<QueueMsgService + Sync + Send>>>
@@ -150,17 +151,39 @@ pub fn push(
 
     let queue_msg_service = &*queue_msg_service_arc.clone();
 
-    let partiton = Partition::new(Queue::new(queue), 1);
+    let partition = Partition::new(Queue::new(queue), partition_id);
 
 
-    match offset_handler.block_partition_and(&partiton, |partition, offset| {
-        queue_msg_service.push_queue_msg(&partiton, offset as u32, &content)
+    match offset_handler.block_partition_and(&partition, |partition, offset| {
+        queue_msg_service.push_queue_msg(&partition, offset as u32, &content)
     }) {
-        Err(_) =>  return format!("{{\"success\": false, \"queue\": \"{}\", partition: {}  }}", partiton.get_queue_name(), partiton.get_id()),
+        Err(_) =>  return format!("{{\"success\": false, \"queue\": \"{}\", partition: {}  }}", partition.get_queue_name(), partition.get_id()),
         _ => {},
     };
 
-    format!("{{\"success\": true, \"queue\": \"{}\", partition: {}  }}", partiton.get_queue_name(), partiton.get_id())
+    format!("{{\"success\": true, \"queue\": \"{}\", partition: {}  }}", partition.get_queue_name(), partition.get_id())
+}
+
+#[post("/queue/<queue>", data = "<content>")]
+pub fn push_queue(
+    queue: String,
+    content: String,
+    mut offset_handler: State<OffsetHandler>,
+    queue_msg_service_arc: State<Arc<Box<QueueMsgService + Sync + Send>>>
+) -> String {
+
+    let queue_msg_service = &*queue_msg_service_arc.clone();
+
+    let queue = Queue::new(queue);
+
+    match offset_handler.block_queue_and(&queue, |p, offset| {
+        queue_msg_service.push_queue_msg(p, offset as u32, &content)
+    }) {
+        Err(_) =>  return format!("{{\"success\": false, \"queue\": \"{}\"}}", queue.get_name()),
+        _ => {},
+    };
+
+    format!("{{\"success\": true, \"queue\": \"{}\"}}", queue.get_name())
 }
 
 #[get("/queue/<queue>/<partition>/<offset>")]
@@ -237,7 +260,7 @@ impl Api {
                 .manage(shared_config)
                 .manage(shared_offset_handler)
                 .manage(queue_msg_service)
-                .mount("/", routes![info, index, queue_get, push]).launch();
+                .mount("/", routes![info, index, queue_get, push_queue, push_partition]).launch();
         });
     }
 }
