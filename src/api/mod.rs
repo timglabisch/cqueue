@@ -153,10 +153,12 @@ pub fn push(
     let partiton = Partition::new(Queue::new(queue), 1);
 
 
-    offset_handler.block_partition_and(&partiton, |partition, offset| {
+    match offset_handler.block_partition_and(&partiton, |partition, offset| {
         queue_msg_service.push_queue_msg(&partiton, offset as u32, &content)
-    }).expect("oh no");
-
+    }) {
+        Err(_) =>  return format!("{{\"success\": false, \"queue\": \"{}\", partition: {}  }}", partiton.get_queue_name(), partiton.get_id()),
+        _ => {},
+    };
 
     format!("{{\"success\": true, \"queue\": \"{}\", partition: {}  }}", partiton.get_queue_name(), partiton.get_id())
 }
