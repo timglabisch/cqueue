@@ -156,7 +156,6 @@ impl FactService {
         let mut lock = arc.write().expect("should be save, lock cant be poisened");
 
         *lock = self.facts.clone();
-
     }
 
     pub fn update_global_facts(&mut self, global_facts: Vec<GlobalFact>) {

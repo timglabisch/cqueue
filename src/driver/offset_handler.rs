@@ -14,6 +14,9 @@ use service::fact::PartitionLockType;
 use std::collections::hash_map::Entry;
 use rand;
 use std::ops::Deref;
+use rand::distributions::range::Range;
+use rand::distributions::IndependentSample;
+
 
 pub type SharedOffsetHandler = Arc<RwLock<Box<OffsetHandler>>>;
 
@@ -95,18 +98,31 @@ impl OffsetHandler {
             };
         }
 
-        {
+        loop {
             let partitions = self.partitions.read().expect("lock shoildnt be poisened");
 
             let mut partition_lock = partitions.get(&hash).expect("must be exists, because we never clean it up");
 
-            let mut partition_write_lock_guard = partition_lock.write().expect("partition_lock should not poisened");
+            match partition_lock.try_write() {
+                Ok(mut partition_write_lock_guard) => {
 
-            let next_offset = &*partition_write_lock_guard + 1;
+                    let next_offset = &*partition_write_lock_guard + 1;
 
-            let locked_function = cb(partition, next_offset)?;
+                    let locked_function = cb(partition, next_offset)?;
 
-            *partition_write_lock_guard = next_offset;
+                    *partition_write_lock_guard = next_offset;
+
+                    break;
+                },
+                Err(_) => {
+                    // we must release both locks and retry
+                    let mut rng = rand::thread_rng();
+                    let sleep_ms = Range::new(0, 4).ind_sample(&mut rng);
+                    ::std::thread::sleep_ms(sleep_ms);
+                    continue;
+                }
+            };
+
         }
 
         Ok(())
