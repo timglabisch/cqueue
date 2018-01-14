@@ -130,8 +130,8 @@ pub fn run_maintain_locks<P: Pool>(pool : &P, fact_service: &mut FactService, co
                     let lock_option = lock_handler.lock_acquire(&partition);
 
                     match lock_option {
-                        Err(_) => {
-                            println!("there was an error acquiring the lock");
+                        Err(e) => {
+                            println!("there was an error acquiring the lock {}", &e);
                             fact_service.update_partition_lock(partition, PartitionLockType::Unknown);
                         },
                         Ok(None) => {

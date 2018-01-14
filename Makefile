@@ -1,4 +1,7 @@
 ab:
+	ab -p bench.txt -c 5 -n 50000 http://127.0.0.1:8000/queue/foo
+
+ab_osx:
 	sudo sysctl -w net.inet.tcp.msl=15000
 	sudo sysctl -w net.inet.tcp.msl=100
 	ab -p bench.txt -c 5 -n 50000 http://127.0.0.1:8000/queue/foo
