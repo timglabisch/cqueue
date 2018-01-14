@@ -1,0 +1,26 @@
+CREATE KEYSPACE queue WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
+
+use queue;
+
+create table queue_locks (
+	queue text,
+	part int,
+	lock timestamp,
+	owner text,
+	PRIMARY KEY(queue, part)
+);
+
+create table queue (
+ queue text,
+ part int,
+ id int,
+ msg text,
+ date timestamp,
+ PRIMARY KEY((queue, part), id)
+);
+
+insert into queue ("queue", "part", "id", "msg", "date") values ('foo', 1, 1, 'foo', '2011-02-03T04:05+0000');
+
+select * from queue;
+
+
