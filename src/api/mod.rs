@@ -22,7 +22,7 @@ use dto::Queue;
 use service::queue_msg_service::QueueMsgService;
 
 #[get("/info")]
-pub fn info(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
+pub fn info(facts: State<SharedFacts>, config: State<SharedConfig>) -> Result<String, Box<::std::fmt::Error>> {
     let f = facts.clone();
     let facts = { f.read().expect("no poison expected").clone() };
 
@@ -32,96 +32,98 @@ pub fn info(facts: State<SharedFacts>, config: State<SharedConfig>) -> String {
         .map(|(_, global_fact)| {
             let mut buffer = String::new();
 
-            buffer.write_str(&format!("\n\t\t\"{}_{}\": {{\n", global_fact.partition.get_queue_name(), &global_fact.partition.get_id().to_string()));
+            buffer.write_str(&format!("\n\t\t\"{}_{}\": {{\n", global_fact.partition.get_queue_name(), &global_fact.partition.get_id().to_string()))?;
 
-            buffer.write_str("\t\t\t\"partition_id\": ");
-            buffer.write_str(&global_fact.partition.get_id().to_string());
-            buffer.write_str(",\n");
+            buffer.write_str("\t\t\t\"partition_id\": ")?;
+            buffer.write_str(&global_fact.partition.get_id().to_string())?;
+            buffer.write_str(",\n")?;
 
-            buffer.write_str("\t\t\t\"queue_name\": \"");
-            buffer.write_str(global_fact.partition.get_queue_name());
-            buffer.write_str("\",\n");
+            buffer.write_str("\t\t\t\"queue_name\": \"")?;
+            buffer.write_str(global_fact.partition.get_queue_name())?;
+            buffer.write_str("\",\n")?;
 
 
             if let Some(ref lock_since) = global_fact.lock_until {
-                buffer.write_str("\t\t\t\"lock_since\": \"");
-                buffer.write_str(&::time::at_utc(lock_since.clone()).rfc3339().to_string());
-                buffer.write_str("\"");
+                buffer.write_str("\t\t\t\"lock_since\": \"")?;
+                buffer.write_str(&::time::at_utc(lock_since.clone()).rfc3339().to_string())?;
+                buffer.write_str("\"")?;
             } else {
-                buffer.write_str("\t\t\t\"lock_since\": null");
+                buffer.write_str("\t\t\t\"lock_since\": null")?;
             };
 
-            buffer.write_str(",\n");
+            buffer.write_str(",\n")?;
 
             if let Some(ref owner) = global_fact.owner {
-                buffer.write_str("\t\t\t\"endpoint\": \"");
-                buffer.write_str(owner);
-                buffer.write_str("\"");
+                buffer.write_str("\t\t\t\"endpoint\": \"")?;
+                buffer.write_str(owner)?;
+                buffer.write_str("\"")?;
             } else {
-                buffer.write_str("\t\t\t\"endpoint\": null");
+                buffer.write_str("\t\t\t\"endpoint\": null")?;
             };
 
-            buffer.write_str("\n\t\t}");
+            buffer.write_str("\n\t\t}")?;
 
-            buffer
+            Ok(buffer)
         })
-        .collect::<Vec<String>>()
+        .collect::<Result<Vec<String>, Box<::std::fmt::Error>>>()?
         .join(",");
 
 
     let mut buffer = String::new();
-    buffer.write_str("{\n");
-    buffer.write_str(&format!("\t\"now\": \"{}\",\n", &::time::now_utc().rfc3339().to_string()));
-    buffer.write_str("\t\"global_partition_facts_updated_at\": ");
+    buffer.write_str("{\n")?;
+    buffer.write_str(&format!("\t\"now\": \"{}\",\n", &::time::now_utc().rfc3339().to_string()))?;
+    buffer.write_str("\t\"global_partition_facts_updated_at\": ")?;
 
     if let Some(ref global_partition_facts_updated_at) = facts.global_partition_facts_updated_at {
-        buffer.write_str("\"");
-        buffer.write_str(&global_partition_facts_updated_at.rfc3339().to_string());
-        buffer.write_str("\"");
+        buffer.write_str("\"")?;
+        buffer.write_str(&global_partition_facts_updated_at.rfc3339().to_string())?;
+        buffer.write_str("\"")?;
     } else {
-        buffer.write_str("null");
+        buffer.write_str("null")?;
     };
 
 
-    buffer.write_str(",\n");
-    buffer.write_str("\t\"partitons\":{");
-    buffer.write_str(&partitions);
-    buffer.write_str("\n\t},");
+    buffer.write_str(",\n")?;
+    buffer.write_str("\t\"partitons\":{")?;
+    buffer.write_str(&partitions)?;
+    buffer.write_str("\n\t},")?;
 
 
     let locks = facts.partition_facts.iter().map(|(_, partiton_fact)|{
 
         let mut buffer = String::new();
 
-        buffer.write_str(&format!("\n\t\t\"{}_{}\":", partiton_fact.get_partition().get_queue_name(), partiton_fact.get_partition().get_id()));
-        buffer.write_str("{\n");
-        buffer.write_str(&format!("\t\t\t\"queue\": \"{}\",\n", partiton_fact.get_partition().get_queue_name()));
-        buffer.write_str(&format!("\t\t\t\"partition\": {},\n", partiton_fact.get_partition().get_id()));
-        buffer.write_str(&format!("\t\t\t\"readable\": {},\n", if partiton_fact.is_readable() { "true" } else { "false" }));
-        buffer.write_str(&format!("\t\t\t\"writeable\": {},\n", if partiton_fact.is_writeable() { "true" } else { "false" }));
+        buffer.write_str(&format!("\n\t\t\"{}_{}\":", partiton_fact.get_partition().get_queue_name(), partiton_fact.get_partition().get_id()))?;
+        buffer.write_str("{\n")?;
+        buffer.write_str(&format!("\t\t\t\"queue\": \"{}\",\n", partiton_fact.get_partition().get_queue_name()))?;
+        buffer.write_str(&format!("\t\t\t\"partition\": {},\n", partiton_fact.get_partition().get_id()))?;
+        buffer.write_str(&format!("\t\t\t\"readable\": {},\n", if partiton_fact.is_readable() { "true" } else { "false" }))?;
+        buffer.write_str(&format!("\t\t\t\"writeable\": {},\n", if partiton_fact.is_writeable() { "true" } else { "false" }))?;
 
         match *partiton_fact.get_partition_lock() {
             PartitionLockType::LockUntil { ref lock, .. } => {
-                buffer.write_str(&format!("\t\t\t\"lock_until\": \"{}\"\n", &::time::at_utc(lock.get_valid_until().clone()).rfc3339().to_string()));
+                buffer.write_str(&format!("\t\t\t\"lock_until\": \"{}\"\n", &::time::at_utc(lock.get_valid_until().clone()).rfc3339().to_string()))?;
             },
             _  => {
-                buffer.write_str("\t\t\t\"lock_until\": null\n");
+                buffer.write_str("\t\t\t\"lock_until\": null\n")?;
             }
         };
 
-        buffer.write_str("\t\t}");
+        buffer.write_str("\t\t}")?;
 
-        buffer
+        Ok(buffer)
 
-    }).collect::<Vec<String>>().join(",");
+    })
+        .collect::<Result<Vec<String>, Box<::std::fmt::Error>>>()?
+        .join(",");
 
-    buffer.write_str("\n\t\"locks\":{");
-    buffer.write_str(&locks);
-    buffer.write_str("\n\t}");
+    buffer.write_str("\n\t\"locks\":{")?;
+    buffer.write_str(&locks)?;
+    buffer.write_str("\n\t}")?;
 
-    buffer.write_str("\n}");
+    buffer.write_str("\n}")?;
 
-    buffer
+    Ok(buffer)
 }
 
 #[get("/")]
