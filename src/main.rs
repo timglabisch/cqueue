@@ -2,6 +2,7 @@
 #![plugin(rocket_codegen)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
+#![allow(deprecated)]
 extern crate cdrs;
 extern crate time;
 extern crate rand;
