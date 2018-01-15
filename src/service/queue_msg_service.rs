@@ -1,9 +1,6 @@
-use cdrs::transport::CDRSTransport;
 use cdrs::query::QueryBuilder;
 use cdrs::types::IntoRustByName;
-use cdrs::client::Session;
 use cdrs::types::rows::Row;
-use cdrs::authenticators::Authenticator;
 use driver::Pool;
 use dto::Partition;
 

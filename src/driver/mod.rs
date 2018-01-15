@@ -1,13 +1,8 @@
-use r2d2::ManageConnection;
 use std::error::Error;
-use std::ops::Deref;
 use std::ops::DerefMut;
 use cdrs::authenticators::Authenticator;
 use cdrs::transport::CDRSTransport;
-use cdrs::client::Session;
 use cdrs::connection_manager::ConnectionManager;
-use cdrs::cluster::ClusterConnectionManager;
-use cdrs::frame::Frame;
 use cdrs::query::Query;
 
 pub mod offset_handler;

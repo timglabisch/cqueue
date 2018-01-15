@@ -4,8 +4,6 @@ use dto::Queue;
 use config::Config;
 use dto::Partition;
 use std::collections::HashMap;
-use time::Timespec;
-use std::collections::hash_map::Entry;
 use lock_handler::AcquiredLock;
 use std::sync::{Arc, RwLock};
 use service::global_fact_service::GlobalFact;

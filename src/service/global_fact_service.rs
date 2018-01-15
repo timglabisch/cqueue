@@ -1,6 +1,6 @@
 use dto::Partition;
 use time::Timespec;
-use driver::{PooledConnection, Pool};
+use driver::{Pool};
 use cdrs::query::QueryBuilder;
 use cdrs::types::rows::Row;
 use cdrs::types::IntoRustByName;

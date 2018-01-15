@@ -1,13 +1,8 @@
-use cdrs::authenticators::Authenticator;
-use cdrs::transport::CDRSTransport;
 use cdrs::query::QueryBuilder;
 use cdrs::types::IntoRustByName;
-use cdrs::client::Session;
 use dto::Partition;
 use driver::Pool;
 use std::sync::{RwLock, Arc};
-use driver::Connection;
-use dto::Queue;
 use std::collections::HashMap;
 use service::fact::SharedFacts;
 use service::fact::PartitionLockType;
@@ -16,6 +11,7 @@ use rand;
 use std::ops::Deref;
 use rand::distributions::range::Range;
 use rand::distributions::IndependentSample;
+use dto::Queue;
 
 
 pub type SharedOffsetHandler = Arc<RwLock<Box<OffsetHandler>>>;

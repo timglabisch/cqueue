@@ -20,9 +20,8 @@ use cdrs::client::CDRS;
 use cdrs::authenticators::PasswordAuthenticator;
 use cdrs::transport::TransportTcp;
 use cdrs::compression::Compression;
-use cdrs::query::{QueryBuilder, QueryParamsBuilder};
-use std::convert::Into;
-use cdrs::types::value::{Value, Bytes};
+use cdrs::query::{QueryBuilder};
+use cdrs::types::value::{Bytes};
 use std::{thread};
 use config::Config;
 use service::fact::FactService;
@@ -32,8 +31,7 @@ use service::fact::PartitionLockType;
 use service::config_service::ConfigService;
 use service::global_fact_service::{GlobalFactCassandraService, GlobalFactService};
 use driver::offset_handler::CassandraOffsetHandler;
-use std::sync::{Arc, RwLock};
-use driver::offset_handler::SharedOffsetHandler;
+use std::sync::{Arc};
 use service::queue_msg_service::CassandraQueueMsgService;
 use driver::offset_handler::OffsetHandler;
 
@@ -69,7 +67,6 @@ fn main() {
 
     // pass authenticator and transport into CDRS' constructor
     let client = CDRS::new(tcp_transport, authenticator);
-    use cdrs::compression;
     
     // start session without compression
     let mut session = client.start(Compression::None).expect("session...");
