@@ -78,7 +78,7 @@ impl QueueMsgService for CassandraQueueMsgService {
 
         let mut pooled_conn = self.pool.get().map_err(|_| "[push_queue_msg] could not get connection from pool".to_string())?;
 
-        pooled_conn.getConnection().query(raw_query)
+        pooled_conn.get_connection().query(raw_query)
             .or_else(|_| Err("[push_queue_msg] Select failed"))?;
 
         Ok(())
@@ -95,7 +95,7 @@ impl QueueMsgService for CassandraQueueMsgService {
 
         let mut pooled_conn = self.pool.get().map_err(|_| "[get_queue_msg] could not get connection from pool".to_string())?;
 
-        let raw_query_result: ::cdrs::frame::Frame = pooled_conn.getConnection().query(raw_query)
+        let raw_query_result: ::cdrs::frame::Frame = pooled_conn.get_connection().query(raw_query)
             .or_else(|_| Err("[get_queue_msg] Select failed"))?;
 
         let body = raw_query_result

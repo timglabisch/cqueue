@@ -1,5 +1,7 @@
 #![feature(plugin)]
 #![plugin(rocket_codegen)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
 extern crate cdrs;
 extern crate time;
 extern crate rand;
@@ -21,7 +23,6 @@ use cdrs::authenticators::PasswordAuthenticator;
 use cdrs::transport::TransportTcp;
 use cdrs::compression::Compression;
 use cdrs::query::{QueryBuilder};
-use cdrs::types::value::{Bytes};
 use std::{thread};
 use config::Config;
 use service::fact::FactService;
@@ -48,7 +49,7 @@ fn main() {
     let mut fact_service = FactService::new();
     fact_service.apply(&config); // todo, should use the config service
 
-    let mut offset_handler = OffsetHandler::new(CassandraOffsetHandler::new(Box::new(pool.clone())), fact_service.get_shared_facts());
+    let offset_handler = OffsetHandler::new(CassandraOffsetHandler::new(Box::new(pool.clone())), fact_service.get_shared_facts());
 
     let queue_msg_service = CassandraQueueMsgService::new(Box::new(pool.clone()));
 

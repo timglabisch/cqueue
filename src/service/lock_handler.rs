@@ -27,7 +27,7 @@ impl<'a, P> LockHandler<'a, P> where P: Pool, P: 'a {
     {
 
         let mut pool = self.pool.get().map_err(|_| "could not get conection from pool".to_string())?;
-        let mut connection = pool.getConnection();
+        let connection = pool.get_connection();
 
         let query = QueryBuilder::new("INSERT INTO queue_locks (queue, part) VALUES (?,?) IF NOT EXISTS USING TTL ?").values(vec![
             partition.get_queue_name().into(),
@@ -88,7 +88,7 @@ impl<'a, P> LockHandler<'a, P> where P: Pool, P: 'a {
 
 
         let mut pool = self.pool.get().map_err(|_| "could not get conection from pool".to_string())?;
-        let mut connection = pool.getConnection();
+        let connection = pool.get_connection();
 
         let valid_until = ::time::get_time();
 

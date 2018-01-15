@@ -140,7 +140,7 @@ pub fn push_partition(
     queue: String,
     partition_id: u32,
     content: String,
-    mut offset_handler: State<OffsetHandler>,
+    offset_handler: State<OffsetHandler>,
     queue_msg_service_arc: State<Arc<Box<QueueMsgService + Sync + Send>>>
 ) -> String {
 
@@ -164,7 +164,7 @@ pub fn push_partition(
 pub fn push_queue(
     queue: String,
     content: String,
-    mut offset_handler: State<OffsetHandler>,
+    offset_handler: State<OffsetHandler>,
     queue_msg_service_arc: State<Arc<Box<QueueMsgService + Sync + Send>>>
 ) -> String {
 

@@ -2,7 +2,7 @@ use cdrs::query::QueryBuilder;
 use cdrs::types::IntoRustByName;
 use dto::Partition;
 use driver::Pool;
-use std::sync::{RwLock, Arc};
+use std::sync::RwLock;
 use std::collections::HashMap;
 use service::fact::SharedFacts;
 use service::fact::PartitionLockType;
@@ -12,10 +12,6 @@ use std::ops::Deref;
 use rand::distributions::range::Range;
 use rand::distributions::IndependentSample;
 use dto::Queue;
-
-
-pub type SharedOffsetHandler = Arc<RwLock<Box<OffsetHandler>>>;
-
 
 pub struct OffsetHandler {
     driver_handler: CassandraOffsetHandler,
@@ -69,7 +65,7 @@ impl OffsetHandler {
                 .and_then(|p| Some(p.get_partition_lock().clone()))
         };
 
-        let aquired_lock = match partition_lock_type {
+        match partition_lock_type {
             Some(PartitionLockType::LockUntil { lock, ..}) => {
                 lock
             },
@@ -97,14 +93,14 @@ impl OffsetHandler {
         loop {
             let partitions = self.partitions.read().expect("lock shoildnt be poisened");
 
-            let mut partition_lock = partitions.get(&hash).expect("must be exists, because we never clean it up");
+            let partition_lock = partitions.get(&hash).expect("must be exists, because we never clean it up");
 
             match partition_lock.try_write() {
                 Ok(mut partition_write_lock_guard) => {
 
                     let next_offset = &*partition_write_lock_guard + 1;
 
-                    let locked_function = cb(partition, next_offset)?;
+                    cb(partition, next_offset)?;
 
                     *partition_write_lock_guard = next_offset;
 
@@ -148,7 +144,7 @@ impl CassandraOffsetHandler {
 
         let mut pooled_conn = self.pool.get().map_err(|_| "[get_latest_offset] could not get connection from pool".to_string())?;
 
-        let max_offset_query_result: ::cdrs::frame::Frame = pooled_conn.getConnection().query(max_offset_query)
+        let max_offset_query_result: ::cdrs::frame::Frame = pooled_conn.get_connection().query(max_offset_query)
             .or_else(|_| Err("[get_latest_offset]  Update Queue Locks failed"))?;
 
         let body = max_offset_query_result
@@ -186,7 +182,7 @@ impl CassandraOffsetHandler {
 
         let mut pooled_conn = self.pool.get().map_err(|_| "could not get connection from pool".to_string())?;
 
-        pooled_conn.getConnection().query(query).expect("Insert into queue_locks failed");
+        pooled_conn.get_connection().query(query).expect("Insert into queue_locks failed");
 
         Ok(())
     }

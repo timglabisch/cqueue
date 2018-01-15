@@ -37,7 +37,7 @@ impl<'a, P> GlobalFactService for GlobalFactCassandraService<'a, P> where P: Poo
 
     fn get_global_facts(&self) -> Result<Vec<GlobalFact>, String> {
         let mut pool = self.pool.get().map_err(|_|  "[global facts] could not get connection from pool".to_string())?;
-        let conn = pool.getConnection();
+        let conn = pool.get_connection();
 
         let queue_locks_query = QueryBuilder::new("SELECT * from queue_locks").values(vec![]).finalize();
 

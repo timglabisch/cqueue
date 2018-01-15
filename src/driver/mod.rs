@@ -27,14 +27,14 @@ X: CDRSTransport + Send + Sync + 'static {
 
 pub trait PooledConnection {
 
-    fn getConnection(&mut self) -> &mut Connection;
+    fn get_connection(&mut self) -> &mut Connection;
 }
 
 impl<T, X> PooledConnection for ::r2d2::PooledConnection<ConnectionManager<T, X>> where
     T: Authenticator + Send + Sync + 'static,
     X: CDRSTransport + Send + Sync + 'static
 {
-    fn getConnection(&mut self) -> &mut Connection {
+    fn get_connection(&mut self) -> &mut Connection {
        self.deref_mut()
     }
 }

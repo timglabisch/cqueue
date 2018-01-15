@@ -40,26 +40,4 @@ impl AcquiredLock {
 }
 
 
-struct Lock {
-    queue: String,
-    partition: u32,
-    time: Timespec,
-    owner: String
-}
-
-struct Locks {
-    inner: Vec<Lock>
-}
-
-impl Locks {
-
-    pub fn get_locks_by_owner(&self, owner : &str) -> Vec<&Lock> {
-        self.inner
-            .iter()
-            .filter(|x|&x.owner == owner)
-            .collect()
-    }
-
-}
-
 
