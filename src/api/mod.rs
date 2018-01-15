@@ -187,7 +187,7 @@ pub fn push_queue(
 }
 
 #[get("/queue/<queue>/<partition>/<offset>")]
-pub fn queue_get(queue: String, partition: u32, offset: u32, queue_msg_service: State<Arc<Box<QueueMsgService + Sync + Send>>>) -> String {
+pub fn queue_partition_get(queue: String, partition: u32, offset: u32, queue_msg_service: State<Arc<Box<QueueMsgService + Sync + Send>>>) -> String {
 
     let partiton = Partition::new(Queue::new(queue), partition);
 
@@ -260,7 +260,7 @@ impl Api {
                 .manage(shared_config)
                 .manage(shared_offset_handler)
                 .manage(queue_msg_service)
-                .mount("/", routes![info, index, queue_get, push_queue, push_partition]).launch();
+                .mount("/", routes![info, index, queue_partition_get, push_queue, push_partition]).launch();
         });
     }
 }
